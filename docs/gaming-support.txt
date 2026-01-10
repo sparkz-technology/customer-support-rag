@@ -1,0 +1,176 @@
+GAMING CUSTOMER SUPPORT DOCUMENTATION
+======================================
+
+ACCOUNT ISSUES
+--------------
+
+Account Recovery:
+If you've lost access to your account, follow these steps:
+1. Go to the login page and click "Forgot Password"
+2. Enter your registered email address
+3. Check your inbox for a recovery link (valid for 24 hours)
+4. If you don't have access to your email, contact support with your username and last purchase receipt
+
+Account Banned:
+If your account has been banned:
+- Temporary bans last 24-72 hours depending on violation severity
+- Permanent bans are issued for cheating, hacking, or repeated violations
+- Appeal a ban by submitting a ticket with your username and explanation
+- Ban appeals are reviewed within 5-7 business days
+
+Two-Factor Authentication:
+Enable 2FA for extra security:
+1. Go to Settings > Security > Two-Factor Auth
+2. Download an authenticator app (Google Authenticator, Authy)
+3. Scan the QR code and enter the 6-digit code
+4. Save your backup codes in a safe place
+
+PAYMENT & BILLING
+-----------------
+
+Payment Methods:
+We accept the following payment methods:
+- Credit/Debit Cards (Visa, Mastercard, Amex)
+- PayPal
+- Game gift cards
+- Mobile payments (Apple Pay, Google Pay)
+
+Refund Policy:
+- In-game currency: Refundable within 14 days if unused
+- Game purchases: Refundable within 14 days with less than 2 hours playtime
+- Season passes: Non-refundable once season starts
+- Cosmetic items: Non-refundable after equipping
+
+Failed Transactions:
+If your payment failed:
+1. Verify your card details are correct
+2. Check if your bank blocked the transaction
+3. Try a different payment method
+4. Contact your bank if the issue persists
+5. Reach out to support if charged but items not received
+
+GAMEPLAY ISSUES
+---------------
+
+Connection Problems:
+Troubleshooting steps for connection issues:
+1. Check your internet connection stability
+2. Restart your router/modem
+3. Disable VPN if using one
+4. Check server status on our status page
+5. Flush DNS cache (ipconfig /flushdns on Windows)
+6. Try switching between WiFi and wired connection
+
+Game Crashes:
+If your game keeps crashing:
+1. Update your graphics drivers to the latest version
+2. Verify game files through the launcher
+3. Lower graphics settings
+4. Disable overlay applications (Discord, Steam overlay)
+5. Check minimum system requirements
+6. Reinstall the game if issues persist
+
+Lost Progress:
+If you've lost game progress:
+- Progress syncs automatically when connected to servers
+- Check if you're logged into the correct account
+- Wait 24 hours for cloud sync to complete
+- Contact support with your username and approximate progress level
+
+IN-GAME PURCHASES
+-----------------
+
+Missing Items:
+If purchased items are not appearing:
+1. Restart the game completely
+2. Check the correct inventory/storage location
+3. Verify the purchase in your transaction history
+4. Wait up to 30 minutes for processing
+5. Contact support with transaction ID if still missing
+
+Virtual Currency:
+- Coins: Standard currency earned through gameplay
+- Gems: Premium currency purchased with real money
+- Tokens: Event-specific currency (expires after event)
+- Gold: Ranked reward currency (season-based)
+
+Season Pass:
+- Season passes last 90 days from purchase
+- Includes exclusive cosmetics, XP boosts, and bonus currency
+- Progress carries over if you purchase mid-season
+- Premium track unlocks with season pass purchase
+
+REPORTING & SAFETY
+------------------
+
+Report a Player:
+To report toxic behavior or cheating:
+1. Open the in-game menu during or after match
+2. Click on the player's name
+3. Select "Report Player"
+4. Choose the violation type (cheating, harassment, hate speech)
+5. Add details if needed and submit
+
+Report Types:
+- Cheating/Hacking: Using third-party software for unfair advantage
+- Harassment: Targeted bullying or repeated unwanted contact
+- Hate Speech: Discriminatory language or symbols
+- Griefing: Intentionally ruining gameplay for others
+- Inappropriate Name: Offensive usernames or clan tags
+
+Parental Controls:
+Set up parental controls:
+1. Go to Settings > Parental Controls
+2. Create a 4-digit PIN
+3. Set playtime limits (daily/weekly)
+4. Restrict chat features
+5. Disable in-app purchases
+6. Filter mature content
+
+TECHNICAL SUPPORT
+-----------------
+
+Minimum System Requirements:
+- OS: Windows 10 64-bit
+- CPU: Intel i5-4460 or AMD Ryzen 3 1200
+- RAM: 8GB
+- GPU: NVIDIA GTX 960 or AMD R9 280
+- Storage: 50GB SSD recommended
+- Internet: 10 Mbps broadband
+
+Recommended System Requirements:
+- OS: Windows 11 64-bit
+- CPU: Intel i7-8700 or AMD Ryzen 5 3600
+- RAM: 16GB
+- GPU: NVIDIA RTX 2060 or AMD RX 5700
+- Storage: 50GB NVMe SSD
+- Internet: 25 Mbps broadband
+
+Port Forwarding:
+If experiencing NAT issues, forward these ports:
+- TCP: 80, 443, 3478-3480
+- UDP: 3074, 3478-3479, 49152-65535
+
+CONTACT SUPPORT
+---------------
+
+Support Channels:
+- In-game ticket: Settings > Help > Submit Ticket
+- Email: support@gamingcompany.com
+- Live chat: Available 9 AM - 9 PM EST
+- Discord: discord.gg/gamingsupport
+- Twitter: @GameSupport
+
+Response Times:
+- Critical issues (can't play): 2-4 hours
+- Payment issues: 24 hours
+- General inquiries: 48-72 hours
+- Ban appeals: 5-7 business days
+
+Before Contacting Support:
+Please have ready:
+- Your username/player ID
+- Platform (PC, PlayStation, Xbox, Mobile)
+- Description of the issue
+- Screenshots or video if applicable
+- Transaction IDs for payment issues

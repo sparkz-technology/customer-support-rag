@@ -1,0 +1,35 @@
+{
+  "name": "ai",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "seed": "node src/scripts/seed.js",
+    "seed:knowledge": "node src/scripts/seed-knowledge.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "postinstall": "npm ls"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@langchain/core": "^1.1.12",
+    "@langchain/groq": "^1.0.2",
+    "@langchain/openai": "^1.2.1",
+    "@langchain/pinecone": "^1.0.1",
+    "@pinecone-database/pinecone": "^5.1.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.2.1",
+    "helmet": "^8.1.0",
+    "langchain": "^1.2.7",
+    "mongoose": "^9.1.2",
+    "morgan": "^1.10.1",
+    "multer": "^2.0.2",
+    "nodemailer": "^7.0.12"
+  }
+}
