@@ -32,49 +32,6 @@ An AI-powered customer support system using Retrieval-Augmented Generation (RAG)
 - Groq API key
 - Gmail account with app password (for OTP emails)
 
-## Installation
-
-1. **Clone and install dependencies:**
-   ```bash
-   npm install
-   ```
-
-2. **Create `.env` file** from template:
-   ```bash
-   cp .env.example .env
-   ```
-
-3. **Configure environment variables** in `.env`:
-
-   ```env
-   # Server
-   PORT=3000
-   NODE_ENV=development
-
-   # MongoDB
-   MONGO_URI=mongodb+srv://USERNAME:PASSWORD@cluster.mongodb.net/DATABASE?retryWrites=true&w=majority
-
-   # OpenAI (embeddings)
-   OPENAI_API_KEY=sk-proj-xxxxx
-
-   # Groq (LLM)
-   GROQ_API_KEY=gsk_xxxxx
-
-   # Pinecone (vector DB)
-   PINECONE_API_KEY=xxxxx
-   PINECONE_INDEX=auto-triager
-   PINECONE_NAMESPACE=support-docs
-
-   # Email (Gmail)
-   SMTP_HOST=smtp.gmail.com
-   SMTP_PORT=587
-   SMTP_USER=your-email@gmail.com
-   SMTP_PASS=your-app-password
-
-  # Webhook (optional)
-  WEBHOOK_URL=https://example.com/webhook
-   ```
-
 ## Running the Application
 
 ### Development Mode
@@ -297,6 +254,13 @@ HTTP status codes:
 ### Vector Store Initialization
 - Must have valid OpenAI API key set
 - Pinecone index must exist before first vector operation
+
+## Updates
+
+- **Enhanced AI Capabilities** – Improved decision-making processes for the AI agent.
+- **User Experience Improvements** – Streamlined ticket submission and tracking interface.
+- **Performance Optimizations** – Reduced response times and improved system efficiency.
+- **New Analytics Dashboard** – Added visualizations for better insights into support metrics.
 
 ## License
 
