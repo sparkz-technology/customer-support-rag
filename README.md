@@ -31,19 +31,49 @@ An AI-powered customer support system using Retrieval-Augmented Generation (RAG)
 - Google API key (for Gemini)
 - Gmail account with app password (for OTP emails)
 
-## Running the Application
+## Setup
 
-### Development Mode
+### 1. Clone the repository
+```bash
+git clone <repository-url>
+cd customer-support-rag
+```
+
+### 2. Install dependencies
+```bash
+npm install
+```
+
+### 3. Configure environment variables
+Copy the example environment file and update with your credentials:
+```bash
+cp .env.example .env
+```
+
+Then edit `.env` and set the following required variables:
+- `MONGO_URI` - Your MongoDB connection string
+- `GOOGLE_API_KEY` - Google AI API key from https://ai.google.dev/
+- `PINECONE_API_KEY` - Pinecone API key
+- `SMTP_USER` and `SMTP_PASS` - Email credentials for OTP delivery
+
+**Important**: Make sure to URL-encode special characters in your MongoDB password (e.g., `@` becomes `%40`, `#` becomes `%23`).
+
+### 4. Start the application
+
+#### Development Mode
 ```bash
 npm run dev
 ```
+The application will start with hot-reload enabled.
 
-### Production Mode
+#### Production Mode
 ```bash
 npm start
 ```
 
 The server starts on the configured PORT (default: 3000).
+
+**Note**: In development mode, if MongoDB is unavailable, the server will still start but database-dependent features will not work until the connection is established.
 
 ## Environment Variables
 
@@ -248,8 +278,16 @@ HTTP status codes:
 ## Troubleshooting
 
 ### MongoDB Connection Error
-- Verify `MONGO_URI` is correct and cluster IP is whitelisted
-- Check credentials do not contain special characters (URL-encode if needed)
+- **DNS Resolution Issues**: If you see `querySrv EREFUSED` errors, this indicates a DNS lookup problem. This can occur if:
+  - The MongoDB cluster hostname is incorrect
+  - Network access rules in MongoDB Atlas are blocking your IP
+  - Your network/firewall is blocking MongoDB connections
+- **In Development Mode**: The application will start even if MongoDB is unavailable, but database-dependent features won't work
+- **Solution**: 
+  - Verify `MONGO_URI` is correct
+  - Whitelist your IP in MongoDB Atlas Network Access settings
+  - Check credentials do not contain unencoded special characters (use URL encoding, e.g., `@` → `%40`)
+  - Test connection using MongoDB Compass or `mongosh` first
 
 ### Pinecone/Gemini Errors
 - Ensure `PINECONE_API_KEY`, `GOOGLE_API_KEY` are valid

@@ -10,6 +10,14 @@ export const connectDB = async () => {
     console.log("✓ Connected to MongoDB");
   } catch (err) {
     console.error("✗ MongoDB Connection Error:", err.message);
-    process.exit(1);
+    
+    // In development, allow the app to start without MongoDB
+    if (process.env.NODE_ENV === "development") {
+      console.warn("⚠ Running in development mode without MongoDB connection");
+      console.warn("⚠ Some features will not work until MongoDB is available");
+    } else {
+      // In production, exit if MongoDB is unavailable
+      process.exit(1);
+    }
   }
 };
