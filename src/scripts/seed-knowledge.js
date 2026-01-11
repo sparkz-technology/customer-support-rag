@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { Document } from "@langchain/core/documents";
-import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { JinaEmbeddings } from "@langchain/community/embeddings/jina";
 import { PineconeStore } from "@langchain/pinecone";
 import { getPineconeIndex } from "../config/pinecone.js";
 import { CONFIG } from "../config/index.js";
@@ -45,13 +45,13 @@ async function seedKnowledge() {
     console.log("Connecting to Pinecone...");
     const pineconeIndex = getPineconeIndex();
 
-    if (!CONFIG.GOOGLE_API_KEY) {
-      throw new Error("GOOGLE_API_KEY must be set in .env");
+    if (!CONFIG.JINA_API_KEY) {
+      throw new Error("JINA_API_KEY must be set in .env");
     }
 
-    const embeddings = new GoogleGenerativeAIEmbeddings({
-      apiKey: CONFIG.GOOGLE_API_KEY,
-      model: "embedding-001",
+    const embeddings = new JinaEmbeddings({
+      jinaApiKey: CONFIG.JINA_API_KEY,
+      model: "jina-embeddings-v2-base-en",
     });
 
     const docs = knowledgeBase.map(
