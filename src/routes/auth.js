@@ -5,6 +5,7 @@ import { sendOTPEmail } from "../services/email.js";
 import { authLimiter } from "../middleware/index.js";
 
 const router = Router();
+const isDev = process.env.NODE_ENV !== "production";
 
 // Email validation helper
 const isValidEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -16,7 +17,7 @@ router.post("/send-otp", authLimiter, async (req, res, next) => {
     if (!email) return res.status(400).json({ error: "Email required." });
     if (!isValidEmail(email)) return res.status(400).json({ error: "Invalid email format." });
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = isDev ? "123456" : Math.floor(100000 + Math.random() * 900000).toString();
     const expires = new Date(Date.now() + 10 * 60000);
 
     let customer = await Customer.findOne({ email });
@@ -30,7 +31,11 @@ router.post("/send-otp", authLimiter, async (req, res, next) => {
       { upsert: true }
     );
 
-    await sendOTPEmail(email, otp);
+    if (isDev) {
+      console.log(`[DEV] Using static OTP 123456 for ${email}`);
+    } else {
+      await sendOTPEmail(email, otp);
+    }
     res.json({ success: true, message: "OTP sent." });
   } catch (err) {
     next(err);
@@ -44,10 +49,20 @@ router.post("/verify-otp", authLimiter, async (req, res, next) => {
     if (!email || !isValidEmail(email)) return res.status(400).json({ error: "Valid email required." });
     if (!otp) return res.status(400).json({ error: "OTP required." });
 
-    const user = await User.findOne({ email });
+    let user = await User.findOne({ email });
 
-    if (!user || user.otp !== otp || new Date() > user.otpExpires) {
-      return res.status(401).json({ error: "Invalid or expired OTP." });
+    if (isDev && otp === "123456") {
+      if (!user) {
+        let customer = await Customer.findOne({ email });
+        if (!customer) {
+          customer = await Customer.create({ email, name: email.split("@")[0] });
+        }
+        user = await User.create({ email, customerId: customer._id });
+      }
+    } else {
+      if (!user || user.otp !== otp || new Date() > user.otpExpires) {
+        return res.status(401).json({ error: "Invalid or expired OTP." });
+      }
     }
 
     const token = crypto.randomBytes(32).toString("hex");

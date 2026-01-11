@@ -1,4 +1,4 @@
-import { OpenAIEmbeddings } from "@langchain/openai";
+import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
 import { PineconeStore } from "@langchain/pinecone";
 import { getPineconeIndex } from "../config/pinecone.js";
 import { CONFIG } from "../config/index.js";
@@ -6,15 +6,12 @@ import { CONFIG } from "../config/index.js";
 let vectorStore = null;
 
 const getEmbeddings = () => {
-  if (!CONFIG.LLM7_IO_API_KEY) {
-    throw new Error("LLM7_IO_API_KEY not configured. Set it in .env");
+  if (!CONFIG.GOOGLE_API_KEY) {
+    throw new Error("GOOGLE_API_KEY must be set in .env");
   }
-  return new OpenAIEmbeddings({
-    openAIApiKey: CONFIG.LLM7_IO_API_KEY,
-    modelName: "text-embedding-3-small",
-    configuration: {
-      baseURL: CONFIG.LLM7_IO_BASE_URL,
-    },
+  return new GoogleGenerativeAIEmbeddings({
+    apiKey: CONFIG.GOOGLE_API_KEY,
+    model: "embedding-001",
   });
 };
 

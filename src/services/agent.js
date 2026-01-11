@@ -1,4 +1,4 @@
-import { ChatOpenAI } from "@langchain/openai";
+import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { DynamicStructuredTool } from "@langchain/core/tools";
 import { z } from "zod";
 import { CONFIG } from "../config/index.js";
@@ -120,17 +120,14 @@ function createTools() {
 }
 
 function initializeAgent() {
-  if (!CONFIG.LLM7_IO_API_KEY) {
-    throw new Error("LLM7_IO_API_KEY not configured. Set it in .env");
+  if (!CONFIG.GOOGLE_API_KEY) {
+    throw new Error("GOOGLE_API_KEY must be set in .env");
   }
 
-  const model = new ChatOpenAI({
-    modelName: "gpt-4o",
+  const model = new ChatGoogleGenerativeAI({
+    model: "gemini-2.0-flash",
     temperature: 0,
-    openAIApiKey: CONFIG.LLM7_IO_API_KEY,
-    configuration: {
-      baseURL: CONFIG.LLM7_IO_BASE_URL,
-    },
+    apiKey: CONFIG.GOOGLE_API_KEY,
   });
 
   const tools = createTools();

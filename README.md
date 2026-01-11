@@ -1,6 +1,6 @@
 # Customer Support RAG
 
-An AI-powered customer support system using Retrieval-Augmented Generation (RAG) to intelligently triage and resolve support tickets. The system combines MongoDB for ticket management, Pinecone for vector similarity search, and Groq LLM for autonomous agent decision-making.
+An AI-powered customer support system using Retrieval-Augmented Generation (RAG) to intelligently triage and resolve support tickets. The system combines MongoDB for ticket management, Pinecone for vector similarity search, and Google Gemini for autonomous agent decision-making.
 
 ## Features
 
@@ -19,7 +19,7 @@ An AI-powered customer support system using Retrieval-Augmented Generation (RAG)
 - **Framework**: Express.js 5.2+
 - **Database**: MongoDB (Mongoose)
 - **Vector DB**: Pinecone + OpenAI Embeddings
-- **LLM**: Groq (llama-3.3-70b-versatile)
+- **LLM**: Google Gemini (gemini-2.0-flash)
 - **Email**: Nodemailer
 - **Security**: Helmet, CORS, Express Rate Limit
 
@@ -28,8 +28,7 @@ An AI-powered customer support system using Retrieval-Augmented Generation (RAG)
 - Node.js 18+
 - MongoDB Atlas or local MongoDB instance
 - Pinecone API key and index
-- OpenAI API key (for embeddings)
-- Groq API key
+- Google API key (for Gemini)
 - Gmail account with app password (for OTP emails)
 
 ## Running the Application
@@ -46,9 +45,19 @@ npm start
 
 The server starts on the configured PORT (default: 3000).
 
+## Environment Variables
+
+- `GOOGLE_API_KEY`: Required for Gemini chat (gemini-2.0-flash) and embeddings (embedding-001). Get a free key at https://ai.google.dev/
+- `PINECONE_API_KEY`, `PINECONE_INDEX`, `PINECONE_NAMESPACE`: Required for vector store.
+- `MONGO_URI`: MongoDB connection string.
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`: Email settings (production).
+- `PORT`: Server port.
+
 ## API Endpoints
 
 ### Authentication
+
+> Development: When NODE_ENV is not production, the OTP is fixed to 123456 and emails are logged to the console instead of being sent.
 
 **Request OTP:**
 ```bash
@@ -232,7 +241,7 @@ HTTP status codes:
 ## Known Limitations
 
 - File upload limited to 5MB
-- Vector search requires Pinecone and OpenAI API setup
+- Vector search requires Pinecone and Google Gemini setup
 - Email sending requires valid SMTP credentials
 - No built-in request authentication for test environment
 
@@ -242,8 +251,8 @@ HTTP status codes:
 - Verify `MONGO_URI` is correct and cluster IP is whitelisted
 - Check credentials do not contain special characters (URL-encode if needed)
 
-### Pinecone/OpenAI Errors
-- Ensure `PINECONE_API_KEY` and `OPENAI_API_KEY` are valid
+### Pinecone/Gemini Errors
+- Ensure `PINECONE_API_KEY`, `GOOGLE_API_KEY` are valid
 - Verify Pinecone index exists and namespace is correct
 
 ### Email Not Sending
@@ -252,7 +261,7 @@ HTTP status codes:
 - Verify `SMTP_USER` and `SMTP_PASS` are correct
 
 ### Vector Store Initialization
-- Must have valid OpenAI API key set
+- Must have valid Google API key set
 - Pinecone index must exist before first vector operation
 
 ## Updates

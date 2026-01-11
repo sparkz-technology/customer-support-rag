@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { Document } from "@langchain/core/documents";
-import { OpenAIEmbeddings } from "@langchain/openai";
+import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
 import { PineconeStore } from "@langchain/pinecone";
 import { getPineconeIndex } from "../config/pinecone.js";
 import { CONFIG } from "../config/index.js";
@@ -45,9 +45,13 @@ async function seedKnowledge() {
     console.log("Connecting to Pinecone...");
     const pineconeIndex = getPineconeIndex();
 
-    const embeddings = new OpenAIEmbeddings({
-      openAIApiKey: CONFIG.OPENAI_API_KEY,
-      modelName: "text-embedding-3-small",
+    if (!CONFIG.GOOGLE_API_KEY) {
+      throw new Error("GOOGLE_API_KEY must be set in .env");
+    }
+
+    const embeddings = new GoogleGenerativeAIEmbeddings({
+      apiKey: CONFIG.GOOGLE_API_KEY,
+      model: "embedding-001",
     });
 
     const docs = knowledgeBase.map(
