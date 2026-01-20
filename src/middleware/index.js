@@ -1,4 +1,11 @@
-export { notFoundHandler, errorHandler } from "./errorHandler.js";
-export { apiLimiter, authLimiter } from "./rateLimiter.js";
-export { requireAuth } from "./auth.js";
-export { uploadText } from "./upload.js";
+// Auth middleware
+export { requireAuth, requireRole, requireAgent, requireAdmin } from "./auth/index.js";
+
+// Error handling middleware
+export { notFoundHandler, errorHandler } from "./error/index.js";
+
+// Validation middleware
+export { uploadText } from "./validation/index.js";
+
+// Rate limiting middleware
+export { apiLimiter, authLimiter } from "./rate-limiter.js";

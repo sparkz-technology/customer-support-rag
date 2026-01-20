@@ -1,0 +1,328 @@
+@import 'tailwindcss';
+
+/* Dark Theme with Green Accent */
+:root {
+  --primary: #22c55e;
+  --primary-dark: #16a34a;
+  --bg-dark: #0f0f0f;
+  --bg-container: #1a1a1a;
+  --bg-elevated: #1f1f1f;
+  --bg-hover: #262626;
+  --border: #303030;
+  --text: #e5e5e5;
+  --text-secondary: #a3a3a3;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #0f0f0f;
+  color: #e5e5e5;
+}
+
+/* Ant Design Dark Overrides */
+.ant-layout {
+  background: #0f0f0f !important;
+}
+
+.ant-card {
+  border-radius: 8px !important;
+  background: #1a1a1a !important;
+}
+
+.ant-btn-primary {
+  background: #22c55e !important;
+  border-color: #22c55e !important;
+}
+
+.ant-btn-primary:hover {
+  background: #16a34a !important;
+  border-color: #16a34a !important;
+}
+
+.ant-btn-default {
+  background: #262626 !important;
+  border-color: #303030 !important;
+  color: #e5e5e5 !important;
+}
+
+.ant-btn-default:hover {
+  background: #303030 !important;
+  border-color: #404040 !important;
+  color: #fff !important;
+}
+
+.ant-input,
+.ant-input-affix-wrapper,
+.ant-select-selector,
+.ant-picker {
+  background: #1a1a1a !important;
+  border-color: #303030 !important;
+}
+
+.ant-input:hover,
+.ant-input-affix-wrapper:hover,
+.ant-select-selector:hover,
+.ant-picker:hover {
+  border-color: #22c55e !important;
+}
+
+.ant-input:focus,
+.ant-input-focused,
+.ant-input-affix-wrapper-focused,
+.ant-select-focused .ant-select-selector,
+.ant-picker-focused {
+  border-color: #22c55e !important;
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.15) !important;
+}
+
+.ant-switch-checked {
+  background: #22c55e !important;
+}
+
+.ant-progress-bg {
+  background: #22c55e !important;
+}
+
+/* Menu */
+.ant-menu {
+  background: transparent !important;
+}
+
+.ant-menu-item {
+  color: #a3a3a3 !important;
+}
+
+.ant-menu-item:hover {
+  background: #262626 !important;
+  color: #e5e5e5 !important;
+}
+
+.ant-menu-item-selected {
+  background: rgba(34, 197, 94, 0.15) !important;
+  color: #22c55e !important;
+}
+
+.ant-menu-item-selected::after {
+  border-color: #22c55e !important;
+}
+
+.ant-menu-submenu-popup {
+  background: #1f1f1f !important;
+}
+
+.ant-menu-submenu-title:hover {
+  background: #262626 !important;
+}
+
+/* Table */
+.ant-table {
+  background: #1a1a1a !important;
+}
+
+.ant-table-thead > tr > th {
+  background: #1a1a1a !important;
+  border-color: #303030 !important;
+}
+
+.ant-table-tbody > tr > td {
+  border-color: #262626 !important;
+}
+
+.ant-table-tbody > tr:hover > td,
+.ant-table-tbody > tr.ant-table-row:hover > td {
+  background: #262626 !important;
+}
+
+.ant-table-tbody > tr.ant-table-row-selected > td {
+  background: rgba(34, 197, 94, 0.15) !important;
+}
+
+/* Dropdown */
+.ant-dropdown-menu {
+  background: #1f1f1f !important;
+}
+
+.ant-dropdown-menu-item:hover {
+  background: #262626 !important;
+}
+
+/* Select dropdown */
+.ant-select-dropdown {
+  background: #1f1f1f !important;
+}
+
+.ant-select-item-option:hover,
+.ant-select-item-option-active {
+  background: #262626 !important;
+}
+
+.ant-select-item-option-selected {
+  background: rgba(34, 197, 94, 0.2) !important;
+}
+
+/* Modal */
+.ant-modal-content {
+  background: #1a1a1a !important;
+}
+
+.ant-modal-header {
+  background: #1a1a1a !important;
+  border-color: #303030 !important;
+}
+
+.ant-modal-footer {
+  border-color: #303030 !important;
+}
+
+/* DatePicker */
+.ant-picker-dropdown {
+  background: #1f1f1f !important;
+}
+
+.ant-picker-panel {
+  background: #1f1f1f !important;
+}
+
+.ant-picker-cell:hover .ant-picker-cell-inner {
+  background: #262626 !important;
+}
+
+.ant-picker-cell-selected .ant-picker-cell-inner {
+  background: #22c55e !important;
+}
+
+/* Collapse */
+.ant-collapse {
+  background: #1a1a1a !important;
+  border-color: #303030 !important;
+}
+
+.ant-collapse-header {
+  background: #1a1a1a !important;
+}
+
+.ant-collapse-content {
+  background: #1a1a1a !important;
+  border-color: #303030 !important;
+}
+
+/* Pagination */
+.ant-pagination-item {
+  background: #1a1a1a !important;
+  border-color: #303030 !important;
+}
+
+.ant-pagination-item a {
+  color: #a3a3a3 !important;
+}
+
+.ant-pagination-item:hover {
+  border-color: #22c55e !important;
+}
+
+.ant-pagination-item:hover a {
+  color: #22c55e !important;
+}
+
+.ant-pagination-item-active {
+  background: #22c55e !important;
+  border-color: #22c55e !important;
+}
+
+.ant-pagination-item-active a {
+  color: #fff !important;
+}
+
+.ant-pagination-item-active:hover a {
+  color: #fff !important;
+}
+
+.ant-pagination-prev button,
+.ant-pagination-next button {
+  color: #a3a3a3 !important;
+}
+
+.ant-pagination-prev:hover button,
+.ant-pagination-next:hover button {
+  color: #22c55e !important;
+}
+
+.ant-pagination-disabled button {
+  color: #525252 !important;
+}
+
+.ant-pagination-options .ant-select-selector {
+  background: #1a1a1a !important;
+  border-color: #303030 !important;
+}
+
+/* Steps */
+.ant-steps-item-process .ant-steps-item-icon {
+  background: #22c55e !important;
+  border-color: #22c55e !important;
+}
+
+.ant-steps-item-finish .ant-steps-item-icon {
+  border-color: #22c55e !important;
+}
+
+.ant-steps-item-finish .ant-steps-item-icon > .ant-steps-icon {
+  color: #22c55e !important;
+}
+
+/* Popover */
+.ant-popover-inner {
+  background: #1f1f1f !important;
+}
+
+/* Tooltip */
+.ant-tooltip-inner {
+  background: #262626 !important;
+}
+
+/* Badge */
+.ant-badge-count {
+  background: #22c55e !important;
+}
+
+/* Empty */
+.ant-empty-description {
+  color: #737373 !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #303030;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #404040;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}

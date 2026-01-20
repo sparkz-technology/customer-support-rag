@@ -1,8 +1,7 @@
 import { Router } from "express";
 import { Document } from "@langchain/core/documents";
 import { addDocuments, searchWithScores } from "../services/rag.js";
-import { requireAuth } from "../middleware/index.js";
-import { uploadText } from "../middleware/upload.js";
+import { requireAuth, uploadText } from "../middleware/index.js";
 
 const router = Router();
 

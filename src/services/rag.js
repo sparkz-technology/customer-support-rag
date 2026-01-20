@@ -1,18 +1,18 @@
-import { JinaEmbeddings } from "@langchain/community/embeddings/jina";
+import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
 import { PineconeStore } from "@langchain/pinecone";
 import { getPineconeIndex } from "../config/pinecone.js";
 import { CONFIG } from "../config/index.js";
 
 let vectorStore = null;
-const EMBEDDING_DIMENSION = 768; // Jina embeddings-v2-base-en returns 768-dimensional vectors
+const EMBEDDING_DIMENSION = 768; // Google text-embedding-004 returns 768-dimensional vectors
 
 const getEmbeddings = () => {
-  if (!CONFIG.JINA_API_KEY) {
-    throw new Error("JINA_API_KEY must be set in .env");
+  if (!CONFIG.GOOGLE_API_KEY) {
+    throw new Error("GOOGLE_API_KEY must be set in .env");
   }
-  return new JinaEmbeddings({
-    jinaApiKey: CONFIG.JINA_API_KEY,
-    model: "jina-embeddings-v2-base-en",
+  return new GoogleGenerativeAIEmbeddings({
+    model: "text-embedding-004",
+    apiKey: CONFIG.GOOGLE_API_KEY,
   });
 };
 
@@ -41,14 +41,9 @@ export const addDocuments = async (documents) => {
   } catch (err) {
     console.error("Document add error:", err.message);
     
-    // Handle quota exceeded
-    if (err.message?.includes("429") || err.message?.includes("quota")) {
-      throw new Error("Google API quota exceeded. Please upgrade your API key to paid tier or wait for quota reset.");
-    }
-    
     // Handle dimension mismatch
     if (err.message?.includes("dimension")) {
-      throw new Error(`Vector dimension mismatch. Pinecone index should be ${EMBEDDING_DIMENSION} dimensions. Check your Pinecone index configuration.`);
+      throw new Error(`Vector dimension mismatch. Pinecone index should be ${EMBEDDING_DIMENSION} dimensions.`);
     }
     
     throw new Error("Failed to add documents to knowledge base");
@@ -63,12 +58,6 @@ export const searchSimilar = async (query, k = 5) => {
     return results;
   } catch (err) {
     console.error("Search error:", err.message);
-    
-    // Handle quota exceeded
-    if (err.message?.includes("429") || err.message?.includes("quota")) {
-      throw new Error("Google API quota exceeded. Please upgrade your API key to paid tier or wait for quota reset.");
-    }
-    
     throw new Error("Knowledge base search failed");
   }
 };
@@ -85,12 +74,6 @@ export const searchWithScores = async (query, k = 5) => {
     }));
   } catch (err) {
     console.error("Search with scores error:", err.message);
-    
-    // Handle quota exceeded
-    if (err.message?.includes("429") || err.message?.includes("quota")) {
-      throw new Error("Google API quota exceeded. Please upgrade your API key to paid tier or wait for quota reset.");
-    }
-    
     throw new Error("Knowledge base search failed");
   }
 };

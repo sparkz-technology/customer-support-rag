@@ -1,276 +1,257 @@
-# Customer Support RAG
+# AI-Powered Customer Support System
 
-An AI-powered customer support system using Retrieval-Augmented Generation (RAG) to intelligently triage and resolve support tickets. The system combines MongoDB for ticket management, Pinecone for vector similarity search, and Google Gemini for autonomous agent decision-making.
+An intelligent customer support backend with RAG (Retrieval Augmented Generation), AI-powered ticket triage, auto-assignment, multi-turn conversations, and real-time analytics.
 
-## Features
+## 🚀 Features
 
-- **OTP-based Authentication** – Secure customer login via email verification
-- **AI Agent Triage** – Automatic ticket classification and resolution recommendations
-- **SLA & Priority Tracking** – Priority-based SLA due times with breach flags
-- **Knowledge Base Search** – RAG-powered documentation retrieval with similarity scoring
-- **Ticket Management** – Create, update, and track support tickets in MongoDB
-- **Webhooks & Alerts** – Generic webhook on ticket create/update
-- **Analytics** – Volume, resolution time, deflection rate, and top intents
-- **Secure API** – Rate limiting, helmet security headers, and session tokens
+### Core Features
+- **AI Agent with Tool Calling** - LangChain + Groq (Llama 3.3 70B) for intelligent responses
+- **RAG System** - Pinecone vector store + Google Gemini embeddings for context-aware answers
+- **Smart Ticket Routing** - Auto-categorization and agent assignment based on issue type
+- **Multi-turn Conversations** - Full conversation history with AI-powered responses
+- **SLA Management** - Automatic SLA tracking with breach alerts
+- **Real-time Webhooks** - Event-driven notifications for ticket lifecycle
 
-## Tech Stack
+### Authentication & Security
+- OTP-based email authentication
+- Session token management
+- Rate limiting (API & Auth endpoints)
+- Helmet security headers
 
-- **Runtime**: Node.js (ES Modules)
-- **Framework**: Express.js 5.2+
-- **Database**: MongoDB (Mongoose)
-- **Vector DB**: Pinecone + OpenAI Embeddings
-- **LLM**: Google Gemini (gemini-2.0-flash)
-- **Email**: Nodemailer
-- **Security**: Helmet, CORS, Express Rate Limit
+### Analytics Dashboard
+- Ticket distribution by status, priority, category
+- Response time & resolution time metrics
+- Agent workload monitoring
+- SLA breach rate tracking
+- Trend analysis (7-day ticket volume)
 
-## Prerequisites
+## 🛠 Tech Stack
 
+| Component | Technology |
+|-----------|------------|
+| Runtime | Node.js + Express 5 |
+| Database | MongoDB + Mongoose |
+| Vector Store | Pinecone |
+| LLM | Groq (Llama 3.3 70B) |
+| Embeddings | Google Gemini (text-embedding-004) |
+| AI Framework | LangChain |
+| Email | Nodemailer |
+
+## 📁 Project Structure
+
+```
+├── src/
+│   ├── config/          # Configuration (DB, Pinecone, env)
+│   ├── middleware/      # Auth, rate limiting, error handling
+│   ├── models/          # MongoDB schemas (Customer, User, Ticket, Agent)
+│   ├── routes/          # API endpoints
+│   │   ├── auth.js      # OTP authentication
+│   │   ├── tickets.js   # Ticket CRUD + conversations
+│   │   ├── triage.js    # AI triage endpoint
+│   │   ├── knowledge.js # Knowledge base management
+│   │   ├── dashboard.js # Analytics & metrics
+│   │   └── webhooks.js  # Webhook receiver
+│   ├── services/        # Business logic
+│   │   ├── agent.js     # AI agent with tools
+│   │   ├── rag.js       # Vector search
+│   │   ├── ticketAssignment.js # Auto-routing
+│   │   ├── email.js     # Notifications
+│   │   └── webhooks.js  # Event dispatcher
+│   └── scripts/         # Seed scripts
+├── docs/                # Knowledge base documents
+└── test-*.js            # Test scripts
+```
+
+## 🔧 Installation
+
+### Prerequisites
 - Node.js 18+
-- MongoDB Atlas or local MongoDB instance
-- Pinecone API key and index
-- Google API key (for Gemini)
-- Gmail account with app password (for OTP emails)
+- MongoDB (local or Atlas)
+- Pinecone account (free tier works)
+- Groq API key (free)
+- Google AI API key (free)
 
-## Running the Application
+### Setup
 
-### Development Mode
+1. **Clone and install**
 ```bash
-npm run dev
+git clone <repo-url>
+cd customer-support-rag
+npm install --legacy-peer-deps
 ```
 
-### Production Mode
+2. **Configure environment**
 ```bash
-npm start
+cp .env.example .env
+# Edit .env with your API keys
 ```
 
-The server starts on the configured PORT (default: 3000).
+3. **Required environment variables**
+```env
+PORT=3000
+NODE_ENV=development
 
-## Environment Variables
+# Database
+MONGO_URI=mongodb://localhost:27017/support
 
-- `GOOGLE_API_KEY`: Required for Gemini chat (gemini-2.0-flash) and embeddings (embedding-001). Get a free key at https://ai.google.dev/
-- `PINECONE_API_KEY`, `PINECONE_INDEX`, `PINECONE_NAMESPACE`: Required for vector store.
-- `MONGO_URI`: MongoDB connection string.
-- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`: Email settings (production).
-- `PORT`: Server port.
+# AI Services
+GROQ_API_KEY=gsk_...          # Get from console.groq.com
+GOOGLE_API_KEY=AIza...        # Get from ai.google.dev
 
-## API Endpoints
+# Vector Store
+PINECONE_API_KEY=pcsk_...     # Get from pinecone.io
+PINECONE_INDEX=auto-triager
+PINECONE_NAMESPACE=support-docs
+
+# Email (Gmail example)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+
+# Webhooks
+WEBHOOK_URL=http://localhost:3000/api/webhooks/ticket-events
+```
+
+4. **Seed database**
+```bash
+npm run seed              # Seed customers, agents, sample tickets
+npm run seed:knowledge    # Seed knowledge base documents
+```
+
+5. **Start server**
+```bash
+npm start     # Production
+npm run dev   # Development (auto-reload)
+```
+
+## 📡 API Endpoints
 
 ### Authentication
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/send-otp` | Send OTP to email |
+| POST | `/api/auth/verify-otp` | Verify OTP, get session token |
 
-> Development: When NODE_ENV is not production, the OTP is fixed to 123456 and emails are logged to the console instead of being sent.
+### Tickets
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/tickets` | Create ticket (auto-assigns agent) |
+| GET | `/api/tickets` | List user's tickets |
+| GET | `/api/tickets/:id` | Get ticket with conversation |
+| POST | `/api/tickets/:id/messages` | Add message (multi-turn chat) |
+| PATCH | `/api/tickets/:id/status` | Update ticket status |
 
-**Request OTP:**
-```bash
-POST /api/auth/send-otp
-Content-Type: application/json
-
-{
-  "email": "user@example.com"
-}
-```
-
-**Verify OTP:**
-```bash
-POST /api/auth/verify-otp
-Content-Type: application/json
-
-{
-  "email": "user@example.com",
-  "otp": "123456"
-}
-
-Response:
-{
-  "success": true,
-  "sessionToken": "hex_encoded_token"
-}
-```
+### AI Triage
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/triage` | AI-powered issue triage |
 
 ### Knowledge Base
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/knowledge/documents` | Add documents (JSON) |
+| POST | `/api/knowledge/upload` | Upload file (.txt, .md, .csv) |
+| GET | `/api/knowledge/search` | Search knowledge base |
 
-**Upload Knowledge File:**
+### Dashboard & Analytics
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/dashboard/metrics` | Full dashboard metrics |
+| GET | `/api/dashboard/sla-alerts` | SLA breach alerts |
+| GET | `/api/analytics` | Basic analytics |
+
+### Webhooks
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/webhooks/ticket-events` | Receive ticket events |
+
+## 🧪 Testing
+
 ```bash
-POST /api/knowledge/upload
-Headers: x-session-token: <TOKEN>
-Content-Type: multipart/form-data
+# Basic API flow test
+node test-api.js
 
-Body:
-- file: gaming-support.txt (text, markdown, or CSV)
-- category: gaming (optional)
-- topic: faq (optional)
+# Full feature test (tickets, conversations, dashboard)
+node test-features.js
 ```
 
-**Add Documents (JSON):**
-```bash
-POST /api/knowledge/documents
-Headers: x-session-token: <TOKEN>
-Content-Type: application/json
+## 🎯 Key Features Explained
 
+### Auto-Assignment System
+Tickets are automatically categorized and assigned to specialized agents:
+- **Account issues** → Account specialists
+- **Billing issues** → Billing team
+- **Technical issues** → Tech support
+- **Gameplay issues** → Game support
+
+Category detection uses keyword matching on ticket description.
+
+### Multi-turn Conversations
+Each ticket maintains a full conversation history:
+```javascript
 {
-  "documents": [
-    {
-      "content": "How to reset password...",
-      "metadata": { "category": "account", "topic": "help" }
-    }
+  conversation: [
+    { role: "customer", content: "...", timestamp: "..." },
+    { role: "agent", content: "...", timestamp: "..." },
+    { role: "system", content: "Ticket assigned to...", timestamp: "..." }
   ]
 }
 ```
 
-**Search Knowledge Base:**
-```bash
-GET /api/knowledge/search?q=account+reset&limit=5
-Headers: x-session-token: <TOKEN>
+### SLA Management
+- Automatic SLA calculation based on priority
+- Real-time breach detection
+- At-risk ticket alerts (due within 4 hours)
 
-Response:
-{
-  "success": true,
-  "results": [
-    {
-      "content": "...",
-      "metadata": { ... },
-      "score": 0.92
-    }
-  ]
-}
-```
+| Priority | SLA |
+|----------|-----|
+| Urgent | 8 hours |
+| High | 24 hours |
+| Medium | 48 hours |
+| Low | 72 hours |
 
-### Ticket Triage
+### AI Agent Tools
+The AI agent has access to:
+1. `get_customer_profile` - Lookup customer data
+2. `manage_mongodb_ticket` - Create/update tickets
+3. `search_knowledge_base` - RAG search
 
-**Submit Ticket for AI Triage:**
-```bash
-POST /api/triage
-Headers: x-session-token: <TOKEN>
-Content-Type: application/json
+### Email Notifications
+Automatic emails sent for:
+- Ticket created
+- Agent assigned
+- New reply
+- Ticket resolved
+- SLA breach alerts
 
-{
-  "ticketId": "optional_existing_id",
-  "description": "I can't log into my account"
-}
+## 📊 Dashboard Metrics
 
-Response:
-{
-  "success": true,
-  "response": "AI agent response..."
-}
+The dashboard provides:
+- **Overview**: Total, open, in-progress, resolved tickets
+- **SLA**: Breach rate, at-risk count
+- **Response Time**: Average first response time
+- **Resolution Time**: Average time to resolve
+- **Distribution**: By status, priority, category
+- **Trends**: 7-day ticket volume
+- **Agent Workloads**: Current load vs capacity
 
-### Analytics
+## 🔒 Security Features
 
-**Get summary metrics:**
-```bash
-GET /api/analytics
-Headers: x-session-token: <TOKEN>
-```
+- Helmet.js security headers
+- CORS configuration
+- Rate limiting (100 req/15min API, 5 req/15min auth)
+- Session token authentication
+- Input validation with Zod
 
-Response fields:
-- `totals.byStatus` / `totals.byPriority`
-- `metrics.averageResolutionHours`
-- `metrics.deflectionRate`
-- `topIntents` (by subject)
-```
+## 📝 License
 
-## Database Schema
+MIT
 
-### Customer
-- `email`: String (unique)
-- `name`: String
-- `plan`: String (basic|premium|enterprise)
-- `metadata`: Object
+## 🤝 Contributing
 
-### User
-- `email`: String (unique)
-- `customerId`: ObjectId (ref: Customer)
-- `sessionToken`: String
-- `otp`: String
-- `otpExpires`: Date
-- `lastSeen`: Date
-
-### Ticket
-- `customerId`: ObjectId (ref: Customer)
-- `customerEmail`: String
-- `subject`: String
-- `description`: String
-- `status`: String (open|in-progress|resolved)
-- `agentLogs`: [String]
-- `createdAt`: Date
-
-## Seeding Knowledge Base
-
-Seed initial knowledge documents:
-```bash
-npm run seed:knowledge
-```
-
-This loads documents from `docs/` directory into Pinecone.
-
-## Scripts
-
-| Command | Purpose |
-|---------|---------|
-| `npm start` | Start production server |
-| `npm run dev` | Start dev server with auto-reload |
-| `npm run seed` | Seed database with initial data |
-| `npm run seed:knowledge` | Populate knowledge base from docs |
-| `npm test` | Run tests (not implemented) |
-
-## Error Handling
-
-All endpoints return structured error responses:
-
-```json
-{
-  "error": "Error message",
-  "stack": "... (development only)"
-}
-```
-
-HTTP status codes:
-- `400`: Bad Request (validation failed)
-- `401`: Unauthorized (invalid/missing token)
-- `403`: Forbidden (session invalid)
-- `404`: Not Found
-- `500`: Server Error
-
-## Security
-
-- **Rate Limiting**: 100 requests/15min per IP (general), 5 attempts/15min (auth)
-- **CORS**: Enabled with default origin
-- **Security Headers**: Helmet protection against common vulnerabilities
-- **Session Tokens**: Crypto-generated 64-character hex strings
-- **Input Validation**: Email regex, file type checking
-
-## Known Limitations
-
-- File upload limited to 5MB
-- Vector search requires Pinecone and Google Gemini setup
-- Email sending requires valid SMTP credentials
-- No built-in request authentication for test environment
-
-## Troubleshooting
-
-### MongoDB Connection Error
-- Verify `MONGO_URI` is correct and cluster IP is whitelisted
-- Check credentials do not contain special characters (URL-encode if needed)
-
-### Pinecone/Gemini Errors
-- Ensure `PINECONE_API_KEY`, `GOOGLE_API_KEY` are valid
-- Verify Pinecone index exists and namespace is correct
-
-### Email Not Sending
-- Use Gmail app password, not account password
-- Enable "Less Secure App" setting if required
-- Verify `SMTP_USER` and `SMTP_PASS` are correct
-
-### Vector Store Initialization
-- Must have valid Google API key set
-- Pinecone index must exist before first vector operation
-
-## Updates
-
-- **Enhanced AI Capabilities** – Improved decision-making processes for the AI agent.
-- **User Experience Improvements** – Streamlined ticket submission and tracking interface.
-- **Performance Optimizations** – Reduced response times and improved system efficiency.
-- **New Analytics Dashboard** – Added visualizations for better insights into support metrics.
-
-## License
-
-ISC
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/amazing`)
+3. Commit changes (`git commit -m 'Add amazing feature'`)
+4. Push to branch (`git push origin feature/amazing`)
+5. Open a Pull Request

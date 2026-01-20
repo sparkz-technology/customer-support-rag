@@ -1,70 +1,301 @@
-import "dotenv/config";
 import mongoose from "mongoose";
-import { CONFIG } from "../config/index.js";
-import { Customer, User, Ticket } from "../models/index.js";
+import dotenv from "dotenv";
+import { User, Agent, Ticket, Customer, AuditLog } from "../models/index.js";
 
-const customers = [
-  { email: "john@example.com", name: "John Doe", plan: "premium" },
-  { email: "jane@example.com", name: "Jane Smith", plan: "enterprise" },
-  { email: "bob@example.com", name: "Bob Wilson", plan: "basic" },
+dotenv.config();
+
+const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/support-ai";
+
+// Agents data
+const agents = [
+  { email: "john@support.com", name: "John Smith", categories: ["technical", "gameplay"], maxLoad: 10 },
+  { email: "sarah@support.com", name: "Sarah Johnson", categories: ["billing", "account"], maxLoad: 8 },
+  { email: "mike@support.com", name: "Mike Wilson", categories: ["security", "technical"], maxLoad: 12 },
 ];
 
-const tickets = [
+// Customers data
+const customers = [
+  { email: "player1@gmail.com", name: "Alex Turner", plan: "premium" },
+  { email: "player2@gmail.com", name: "Emma Davis", plan: "basic" },
+  { email: "player3@gmail.com", name: "Chris Brown", plan: "enterprise" },
+  { email: "player4@gmail.com", name: "Lisa Wang", plan: "premium" },
+  { email: "player5@gmail.com", name: "David Kim", plan: "basic" },
+];
+
+// Sample tickets with conversations
+const ticketTemplates = [
   {
-    customerEmail: "john@example.com",
-    subject: "Login Issue",
-    description: "Cannot login to my account after password reset",
+    subject: "Cannot login to my account",
+    description: "I've been trying to login for the past hour but keep getting 'Invalid credentials' error. I'm sure my password is correct.",
+    category: "account",
+    priority: "high",
     status: "open",
+    conversation: [
+      { role: "customer", content: "I've been trying to login for the past hour but keep getting 'Invalid credentials' error." },
+    ],
   },
   {
-    customerEmail: "jane@example.com",
-    subject: "Billing Question",
-    description: "Need clarification on last month invoice",
+    subject: "Billing issue - double charged",
+    description: "I was charged twice for my monthly subscription. Please refund the extra charge.",
+    category: "billing",
+    priority: "urgent",
     status: "in-progress",
+    conversation: [
+      { role: "customer", content: "I was charged twice for my monthly subscription. Order #12345" },
+      { role: "agent", content: "I apologize for the inconvenience. I can see the duplicate charge. Processing refund now." },
+      { role: "customer", content: "Thank you! How long will it take?" },
+    ],
   },
   {
-    customerEmail: "bob@example.com",
-    subject: "Feature Request",
-    description: "Would like to have dark mode option",
+    subject: "Game crashes on startup",
+    description: "The game crashes immediately after the loading screen. I've tried reinstalling but the issue persists.",
+    category: "technical",
+    priority: "high",
+    status: "open",
+    conversation: [
+      { role: "customer", content: "Game crashes on startup. Windows 11, RTX 3080, 32GB RAM." },
+    ],
+  },
+  {
+    subject: "Missing in-game items",
+    description: "I purchased the Battle Pass but didn't receive the exclusive items. Transaction ID: TXN-789456",
+    category: "gameplay",
+    priority: "medium",
+    status: "in-progress",
+    conversation: [
+      { role: "customer", content: "Purchased Battle Pass but items are missing. TXN-789456" },
+      { role: "agent", content: "I've verified your purchase. The items should appear within 24 hours." },
+    ],
+  },
+  {
+    subject: "Account security concern",
+    description: "I received an email about a login from an unknown location. Please help secure my account.",
+    category: "security",
+    priority: "urgent",
+    status: "open",
+    slaBreached: true,
+    conversation: [
+      { role: "customer", content: "Someone tried to access my account from Russia. I'm in the US!" },
+    ],
+  },
+  {
+    subject: "How to change username",
+    description: "I want to change my display name in the game. How can I do this?",
+    category: "account",
+    priority: "low",
     status: "resolved",
+    conversation: [
+      { role: "customer", content: "How do I change my username?" },
+      { role: "agent", content: "Go to Settings > Profile > Edit Display Name. You can change it once every 30 days." },
+      { role: "customer", content: "Found it, thanks!" },
+    ],
+  },
+  {
+    subject: "Refund request for DLC",
+    description: "I accidentally purchased the wrong DLC pack. Can I get a refund?",
+    category: "billing",
+    priority: "medium",
+    status: "open",
+    conversation: [
+      { role: "customer", content: "Bought wrong DLC by mistake. Order #DLC-2024-001" },
+    ],
+  },
+  {
+    subject: "Lag spikes during gameplay",
+    description: "Experiencing severe lag spikes every few minutes. My internet is fine, tested with other games.",
+    category: "technical",
+    priority: "medium",
+    status: "in-progress",
+    conversation: [
+      { role: "customer", content: "Lag spikes every 2-3 minutes. Ping goes from 30ms to 500ms+" },
+      { role: "agent", content: "This might be server-related. Which region are you playing on?" },
+      { role: "customer", content: "US East server" },
+    ],
+  },
+  {
+    subject: "Banned unfairly",
+    description: "My account was banned but I never cheated. Please review my case.",
+    category: "security",
+    priority: "high",
+    status: "open",
+    conversation: [
+      { role: "customer", content: "Account banned for 'cheating' but I've never used any hacks!" },
+    ],
+  },
+  {
+    subject: "Cannot redeem promo code",
+    description: "The promo code SUMMER2024 is not working. It says 'Invalid code'.",
+    category: "billing",
+    priority: "low",
+    status: "resolved",
+    conversation: [
+      { role: "customer", content: "Promo code SUMMER2024 not working" },
+      { role: "agent", content: "That code expired on July 31st. Here's a new code: FALL2024 for 15% off." },
+      { role: "customer", content: "That worked, thank you!" },
+    ],
+  },
+  {
+    subject: "Progress not saving",
+    description: "My game progress keeps resetting. Lost 10 hours of gameplay twice now.",
+    category: "technical",
+    priority: "urgent",
+    status: "open",
+    slaBreached: true,
+    conversation: [
+      { role: "customer", content: "Lost all my progress AGAIN! This is the second time!" },
+    ],
+  },
+  {
+    subject: "Two-factor authentication setup",
+    description: "I want to enable 2FA on my account but can't find the option.",
+    category: "security",
+    priority: "low",
+    status: "resolved",
+    conversation: [
+      { role: "customer", content: "Where is the 2FA option?" },
+      { role: "agent", content: "Go to Account Settings > Security > Enable Two-Factor Authentication" },
+      { role: "customer", content: "Got it, enabled now. Thanks!" },
+    ],
   },
 ];
 
 async function seed() {
   try {
-    await mongoose.connect(CONFIG.MONGO_URI);
-    console.log("Connected to MongoDB");
+    console.log("Connecting to MongoDB...");
+    await mongoose.connect(MONGO_URI);
+    console.log("Connected!\n");
 
-    // Clear existing data
-    await Customer.deleteMany({});
-    await User.deleteMany({});
-    await Ticket.deleteMany({});
-    console.log("Cleared existing data");
+    // Drop all collections
+    console.log("Dropping existing data...");
+    await Promise.all([
+      User.deleteMany({}),
+      Agent.deleteMany({}),
+      Ticket.deleteMany({}),
+      Customer.deleteMany({}),
+      AuditLog.deleteMany({}),
+    ]);
+    console.log("✓ All collections cleared\n");
 
-    // Seed customers
+    // Create customers
+    console.log("Creating customers...");
     const createdCustomers = await Customer.insertMany(customers);
-    console.log(`Seeded ${createdCustomers.length} customers`);
+    console.log(`✓ Created ${createdCustomers.length} customers\n`);
 
-    // Create users linked to customers
-    const users = createdCustomers.map((c) => ({
-      email: c.email,
-      customerId: c._id,
+    // Create agents
+    console.log("Creating agents...");
+    const createdAgents = await Agent.insertMany(agents);
+    console.log(`✓ Created ${createdAgents.length} agents\n`);
+
+    // Create users
+    console.log("Creating users...");
+    
+    // Admin user (role stored in database, not hardcoded)
+    const adminUser = {
+      email: "admin@example.com",
+      name: "Admin User",
+      role: "admin",
+    };
+
+    // Agent users (linked to Agent records)
+    const agentUsers = createdAgents.map(agent => ({
+      email: agent.email,
+      name: agent.name,
+      role: "agent",
+      agentId: agent._id,
     }));
-    await User.insertMany(users);
-    console.log(`Seeded ${users.length} users`);
 
-    // Seed tickets with customer links
-    const ticketsWithIds = tickets.map((t) => {
-      const customer = createdCustomers.find((c) => c.email === t.customerEmail);
-      return { ...t, customerId: customer?._id };
+    // Customer users (linked to Customer records)
+    const customerUsers = createdCustomers.map(customer => ({
+      email: customer.email,
+      name: customer.name,
+      role: "user",
+      customerId: customer._id,
+    }));
+
+    await User.insertMany([adminUser, ...agentUsers, ...customerUsers]);
+    console.log(`✓ Created ${1 + agentUsers.length + customerUsers.length} users\n`);
+
+    // Create tickets
+    console.log("Creating tickets...");
+    const SLA_HOURS = { low: 72, medium: 48, high: 24, urgent: 8 };
+    
+    const tickets = ticketTemplates.map((template, index) => {
+      const customer = createdCustomers[index % createdCustomers.length];
+      const assignedAgent = template.status !== "open" ? createdAgents[index % createdAgents.length] : null;
+      const createdAt = new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000);
+      const slaHours = SLA_HOURS[template.priority];
+      const slaDueAt = new Date(createdAt.getTime() + slaHours * 60 * 60 * 1000);
+      
+      return {
+        ...template,
+        customerId: customer._id,
+        customerEmail: customer.email,
+        assignedTo: assignedAgent?._id,
+        slaDueAt,
+        slaBreached: template.slaBreached || slaDueAt < new Date(),
+        resolvedAt: template.status === "resolved" ? new Date() : undefined,
+        firstResponseAt: template.conversation.some(m => m.role === "agent") ? new Date(createdAt.getTime() + 30 * 60 * 1000) : undefined,
+        createdAt,
+        conversation: template.conversation.map((msg, i) => ({
+          ...msg,
+          timestamp: new Date(createdAt.getTime() + i * 15 * 60 * 1000),
+        })),
+      };
     });
-    await Ticket.insertMany(ticketsWithIds);
-    console.log(`Seeded ${ticketsWithIds.length} tickets`);
 
-    console.log("Seeding complete!");
+    const createdTickets = await Ticket.insertMany(tickets);
+    console.log(`✓ Created ${createdTickets.length} tickets\n`);
+
+    // Update agent loads
+    console.log("Updating agent loads...");
+    for (const agent of createdAgents) {
+      const assignedCount = await Ticket.countDocuments({
+        assignedTo: agent._id,
+        status: { $nin: ["resolved", "closed"] },
+      });
+      await Agent.findByIdAndUpdate(agent._id, { currentLoad: assignedCount });
+    }
+    console.log("✓ Agent loads updated\n");
+
+    // Create audit logs
+    console.log("Creating audit logs...");
+    const auditLogs = [
+      { action: "system.startup", category: "system", description: "System initialized", severity: "info" },
+      { action: "user.login", category: "user", userEmail: "admin@example.com", userName: "Admin User", description: "Admin logged in", severity: "info" },
+      { action: "agent.created", category: "agent", userEmail: "admin@example.com", description: "Agent John Smith created", targetType: "agent", severity: "info" },
+      { action: "ticket.created", category: "ticket", userEmail: "player1@gmail.com", description: "New ticket: Cannot login to my account", severity: "info" },
+      { action: "ticket.sla_breached", category: "ticket", description: "SLA breached for ticket: Account security concern", severity: "warning" },
+    ];
+    await AuditLog.insertMany(auditLogs);
+    console.log(`✓ Created ${auditLogs.length} audit logs\n`);
+
+    // Summary
+    console.log("=".repeat(50));
+    console.log("SEED COMPLETE!");
+    console.log("=".repeat(50));
+    console.log(`
+Customers: ${createdCustomers.length}
+Agents: ${createdAgents.length}
+Users: ${1 + agentUsers.length + customerUsers.length}
+Tickets: ${createdTickets.length}
+Audit Logs: ${auditLogs.length}
+
+LOGIN CREDENTIALS (OTP: 123456 in dev mode):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Admin:    admin@example.com
+Agents:   john@support.com, sarah@support.com, mike@support.com
+Users:    player1@gmail.com, player2@gmail.com, player3@gmail.com, etc.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+NOTE: User roles are now stored in the database.
+      No hardcoded email lists - roles are determined by User.role field.
+`);
+
+    await mongoose.disconnect();
+    console.log("Done!");
     process.exit(0);
-  } catch (err) {
-    console.error("Seeding failed:", err);
+  } catch (error) {
+    console.error("Seed error:", error);
     process.exit(1);
   }
 }
