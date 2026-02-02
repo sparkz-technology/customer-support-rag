@@ -7,6 +7,7 @@
  * Requirements: 10.4
  */
 
+import { createElement } from 'react';
 import { ExclamationCircleOutlined } from '@ant-design/icons';
 
 /**
@@ -21,11 +22,11 @@ export function getValidationProps(error, touched = true) {
   }
   return {
     validateStatus: 'error',
-    help: (
-      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-        <ExclamationCircleOutlined style={{ fontSize: 12 }} />
-        {error}
-      </span>
+    help: createElement(
+      'span',
+      { style: { display: 'flex', alignItems: 'center', gap: 4 } },
+      createElement(ExclamationCircleOutlined, { style: { fontSize: 12 } }),
+      error
     ),
   };
 }

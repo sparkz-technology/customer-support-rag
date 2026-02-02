@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ticketsApi, agentApi, adminApi } from './client';
 import toast from 'react-hot-toast';
-import { getToastErrorMessage } from '../shared/components/feedback/errorUtils';
+import { getToastErrorMessage } from '../shared/utils/errorUtils';
 
 // Dashboard Hooks - Re-exported from feature module for backward compatibility
 export { useDashboardMetrics, useSlaAlerts, dashboardQueryKeys } from '../features/dashboard/api';

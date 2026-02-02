@@ -5,7 +5,7 @@ import { useUIStore } from '../../../store/uiStore';
 import { Card, Table, Tag, Button, Input, Space, Modal, Form, Select, Typography, Empty, Badge, Tooltip } from 'antd';
 import { PlusOutlined, SearchOutlined, ClockCircleOutlined, CheckCircleOutlined, ExclamationCircleOutlined, SyncOutlined } from '@ant-design/icons';
 import { SLADisplay } from '../components/SLADisplay';
-import { formatFirstResponseTime } from './ticketsPageUtils';
+import { formatFirstResponseTime } from '../utils/ticketsPageUtils';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;

@@ -8,7 +8,7 @@
 
 import { Form, Input, Select, Typography } from 'antd';
 import { ExclamationCircleOutlined } from '@ant-design/icons';
-import { getValidationProps } from './formUtils';
+import { getValidationProps } from '../../utils/formUtils.js';
 
 const { Text } = Typography;
 const { TextArea } = Input;
