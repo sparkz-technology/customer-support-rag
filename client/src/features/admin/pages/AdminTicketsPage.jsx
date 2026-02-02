@@ -170,6 +170,8 @@ export default function AdminTicketsPage() {
     },
   });
 
+  // Memoize tickets to ensure stable reference for downstream useMemos
+  // Without this, the || [] fallback would create a new array each render when data?.tickets is undefined
   const tickets = useMemo(() => data?.tickets || [], [data?.tickets]);
   const total = data?.pagination?.total || tickets.length;
 
