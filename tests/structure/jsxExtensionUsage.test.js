@@ -18,6 +18,12 @@ import * as path from 'path';
 const CLIENT_SRC_PATH = path.join(process.cwd(), 'client', 'src');
 
 /**
+ * Files that are intentionally .jsx for consistency with other tests
+ * (e.g., routes.jsx is required by routeLazyLoading.test.js)
+ */
+const EXCLUDED_JSX_FILES = ['routes.jsx', 'main.jsx'];
+
+/**
  * Helper function to recursively get all .js and .jsx files in a directory
  * @param {string} dirPath - Path to directory
  * @returns {string[]} Array of file paths
@@ -118,6 +124,9 @@ describe('Feature: code-modularity-refactor, Property 10: JSX Extension Usage', 
         async (filePath) => {
           const hasJSX = containsJSX(filePath);
           const extension = getFileExtension(filePath);
+          const fileName = path.basename(filePath);
+          // Skip excluded files that are intentionally .jsx
+          if (EXCLUDED_JSX_FILES.includes(fileName)) return;
           
           // Property: Files without JSX syntax should have .js extension
           if (!hasJSX) {

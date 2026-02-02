@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { agentApi, agentQueryKeys } from './agentApi';
 import toast from 'react-hot-toast';
-import { getToastErrorMessage } from '../../../shared/components/feedback/errorUtils';
+import { getToastErrorMessage } from '../../../shared/utils/errorUtils';
 
 /**
  * Hook to fetch agent tickets with optional filters

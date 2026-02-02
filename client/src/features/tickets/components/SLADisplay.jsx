@@ -1,7 +1,7 @@
 import { Tag, Tooltip } from 'antd';
 import { ClockCircleOutlined, WarningOutlined, ExclamationCircleOutlined } from '@ant-design/icons';
 
-import { formatSLATime, getSLAStatus } from './slaUtils';
+import { formatSLATime, getSLAStatus } from '../utils/slaUtils';
 
 /**
  * SLA Display Component

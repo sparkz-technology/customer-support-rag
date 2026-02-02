@@ -4,7 +4,8 @@ export {
   ValidatedTextArea, 
   ValidatedSelect, 
   FieldError, 
-  getValidationProps,
-  useFormFields,
   default as FormField 
-} from './FormField.jsx';
+} from './FieldError.jsx';
+
+// Form utilities - re-exported from utils
+export { getValidationProps, useFormFields } from '../../utils/formUtils.js';

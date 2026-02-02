@@ -1,6 +1,6 @@
 // Tickets components barrel export
 export { SLADisplay, default as SLADisplayDefault } from './SLADisplay';
-export { formatSLATime, getSLAStatus } from './slaUtils';
+export { formatSLATime, getSLAStatus } from '../utils/slaUtils';
 export { 
   TicketBadges, 
   ManualReviewBadge, 
@@ -13,4 +13,4 @@ export {
   filterAgentsByCapacity, 
   sortAgentsByCategory, 
   processAgentsForDropdown 
-} from './agentSelectUtils';
+} from '../utils/agentSelectUtils';

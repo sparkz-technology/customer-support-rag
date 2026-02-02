@@ -5,7 +5,7 @@ import { agentApi } from '../../../api/client';
 
 const { Text } = Typography;
 
-import { processAgentsForDropdown } from './agentSelectUtils';
+import { processAgentsForDropdown } from '../utils/agentSelectUtils';
 
 /**
  * Agent Select Component

@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { ticketsApi } from './ticketsApi';
-import { getToastErrorMessage } from '../../../shared/components/feedback/errorUtils';
+import { getToastErrorMessage } from '../../../shared/utils/errorUtils';
 
 /**
  * Query keys for tickets
