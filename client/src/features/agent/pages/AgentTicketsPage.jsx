@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAgentTickets } from '../api/useAgent';
 import { Card, Table, Tag, Select, Space, Typography, Switch, Badge, Tooltip } from 'antd';

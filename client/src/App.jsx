@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Spin } from 'antd';
 import { useAuthStore } from './store/authStore';
 import Layout from './shared/components/layout/Layout';
@@ -12,15 +12,22 @@ import {
   RoleBasedRedirect,
 } from './app/guards';
 
-// Import route configurations
+// Import lazy-loaded components
 import {
-  userRoutes,
-  agentRoutes,
-  adminRoutes,
+  DashboardPage,
+  TicketsPage,
+  TicketDetailPage,
+  AIChat,
+  LoginPage,
+  AgentDashboardPage,
+  AgentTicketsPage,
+  AgentChatPage,
+  AdminDashboardPage,
+  AdminTicketsPage,
+  AdminAgentsPage,
+  AdminUsersPage,
+  AdminAuditLogPage,
 } from './app/routes';
-
-// Import LoginPage directly for the public route (lazy loaded from routes)
-import { LoginPage } from './app/routes';
 
 /**
  * Loading fallback component for Suspense boundaries
@@ -70,9 +77,10 @@ function App() {
               </ProtectedRoute>
             }
           >
-            {userRoutes.map((route) => (
-              <Route key={route.path} path={route.path} element={route.element} />
-            ))}
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/chat" element={<AIChat />} />
+            <Route path="/tickets" element={<TicketsPage />} />
+            <Route path="/tickets/:id" element={<TicketDetailPage />} />
           </Route>
           
           {/* Agent routes */}
@@ -85,9 +93,9 @@ function App() {
               </ProtectedRoute>
             }
           >
-            {agentRoutes.map((route) => (
-              <Route key={route.path} path={route.path} element={route.element} />
-            ))}
+            <Route path="/agent" element={<AgentDashboardPage />} />
+            <Route path="/agent/tickets" element={<AgentTicketsPage />} />
+            <Route path="/agent/tickets/:id" element={<AgentChatPage />} />
           </Route>
 
           {/* Admin routes */}
@@ -100,9 +108,11 @@ function App() {
               </ProtectedRoute>
             }
           >
-            {adminRoutes.map((route) => (
-              <Route key={route.path} path={route.path} element={route.element} />
-            ))}
+            <Route path="/admin" element={<AdminDashboardPage />} />
+            <Route path="/admin/tickets" element={<AdminTicketsPage />} />
+            <Route path="/admin/agents" element={<AdminAgentsPage />} />
+            <Route path="/admin/users" element={<AdminUsersPage />} />
+            <Route path="/admin/audit-log" element={<AdminAuditLogPage />} />
           </Route>
         </Routes>
       </Suspense>

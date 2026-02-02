@@ -1,12 +1,24 @@
 // Application shell barrel export
 
-// Route configuration
+// Lazy-loaded page components
 export {
-  userRoutes,
-  agentRoutes,
-  adminRoutes,
-  publicRoutes,
+  DashboardPage,
+  TicketsPage,
+  TicketDetailPage,
+  AIChat,
+  LoginPage,
+  AgentDashboardPage,
+  AgentTicketsPage,
+  AgentChatPage,
+  AdminDashboardPage,
+  AdminTicketsPage,
+  AdminAgentsPage,
+  AdminUsersPage,
+  AdminAuditLogPage,
 } from './routes';
+
+// Route path constants
+export { routePaths } from './routeConfig';
 
 // Route guards
 export {

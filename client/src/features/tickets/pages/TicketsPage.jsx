@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTickets, useCreateTicket } from '../api/useTickets';
 import { useUIStore } from '../../../store/uiStore';

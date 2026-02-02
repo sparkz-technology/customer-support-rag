@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback } from 'react';
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { adminApi } from '../api/adminApi';
@@ -12,8 +12,7 @@ import {
   WarningOutlined, UserOutlined, SearchOutlined,
   DownOutlined, ReloadOutlined, SyncOutlined
 } from '@ant-design/icons';
-import { SLADisplay, getSLAStatus } from '../../tickets/components/SLADisplay';
-import { AgentSelect } from '../../tickets/components/AgentSelect';
+import { SLADisplay, getSLAStatus, AgentSelect } from '../../tickets/components';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;
@@ -114,21 +113,19 @@ export default function AdminTicketsPage() {
     }
   }, []);
 
-  // Build query params
-  const queryParams = useMemo(() => {
-    const params = {};
-    if (filters.status) params.status = filters.status;
-    if (filters.category) params.category = filters.category;
-    if (filters.priority) params.priority = filters.priority;
-    if (filters.search) params.search = filters.search;
-    params.page = pagination.current;
-    params.limit = pagination.pageSize;
-    return params;
-  }, [filters, pagination]);
+  // Build query params - direct object creation since React Query handles memoization internally
+  const queryParams = {
+    ...(filters.status && { status: filters.status }),
+    ...(filters.category && { category: filters.category }),
+    ...(filters.priority && { priority: filters.priority }),
+    ...(filters.search && { search: filters.search }),
+    page: pagination.current,
+    limit: pagination.pageSize,
+  };
 
   // Fetch tickets
   const { data, isLoading, isFetching, refetch } = useQuery({
-    queryKey: ['admin-tickets', queryParams],
+    queryKey: ['admin-tickets', filters.status, filters.category, filters.priority, filters.search, pagination.current, pagination.pageSize],
     queryFn: () => adminApi.getTickets(queryParams),
     refetchInterval: 30000,
     refetchIntervalInBackground: false,
@@ -136,9 +133,11 @@ export default function AdminTicketsPage() {
   });
   
   // Save scroll position when fetching starts
-  if (isFetching && !isLoading) {
-    saveScrollPosition();
-  }
+  useEffect(() => {
+    if (isFetching && !isLoading) {
+      saveScrollPosition();
+    }
+  }, [isFetching, isLoading, saveScrollPosition]);
 
   // Bulk update mutation
   const bulkUpdateMutation = useMutation({
@@ -171,7 +170,7 @@ export default function AdminTicketsPage() {
     },
   });
 
-  const tickets = data?.tickets || [];
+  const tickets = useMemo(() => data?.tickets || [], [data?.tickets]);
   const total = data?.pagination?.total || tickets.length;
 
   // Calculate SLA statistics
