@@ -8,6 +8,7 @@ import Layout from './shared/components/layout/Layout';
 import {
   ProtectedRoute,
   AgentRoute,
+  UserRoute,
   AdminRoute,
   RoleBasedRedirect,
 } from './app/guards';
@@ -73,7 +74,9 @@ function App() {
           <Route
             element={
               <ProtectedRoute>
-                <Layout variant="user" />
+                <UserRoute>
+                  <Layout variant="user" />
+                </UserRoute>
               </ProtectedRoute>
             }
           >
