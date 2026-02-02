@@ -59,6 +59,30 @@ body {
   color: #fff !important;
 }
 
+/* App button overrides: make primary and text buttons consistent */
+.ant-btn {
+  border-radius: 12px !important;
+  height: 48px !important;
+  padding: 0 16px !important;
+  font-weight: 600 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.ant-btn-primary {
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.ant-btn-text {
+  color: #e5e5e5 !important;
+}
+
+.ant-btn-block {
+  width: 100% !important;
+}
+
 .ant-input,
 .ant-input-affix-wrapper,
 .ant-select-selector,

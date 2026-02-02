@@ -10,10 +10,10 @@ export const useAuthStore = create(
       isAuthenticated: false,
       
       login: (token, user) => set({ 
-        token, 
-        email: user.email, 
-        user,
-        isAuthenticated: true 
+        token,
+        email: user.email,
+        user: { ...user, role: user.role ? String(user.role).toLowerCase() : user.role },
+        isAuthenticated: true,
       }),
       logout: () => set({ 
         token: null, 
@@ -21,7 +21,7 @@ export const useAuthStore = create(
         user: null, 
         isAuthenticated: false 
       }),
-      updateUser: (user) => set({ user, email: user.email }),
+      updateUser: (user) => set({ user: { ...user, role: user.role ? String(user.role).toLowerCase() : user.role }, email: user.email }),
     }),
     { name: 'auth-storage' }
   )

@@ -14,11 +14,14 @@ import { useAuthStore } from '../../../store/authStore';
 const { Sider, Content } = AntLayout;
 const { Text } = Typography;
 
-export default function Layout({ variant = 'user' }) {
+export default function Layout({ variant }) {
   const navigate = useNavigate();
   const location = useLocation();
   const logout = useAuthStore((s) => s.logout);
   const user = useAuthStore((s) => s.user);
+
+  // Resolve the UI variant: prefer explicit prop, otherwise derive from user role.
+  const resolvedVariant = variant || (user?.role ? String(user.role).toLowerCase() : 'user');
 
   const handleLogout = () => {
     logout();
@@ -43,7 +46,7 @@ export default function Layout({ variant = 'user' }) {
     ],
   };
 
-  const menuItems = menuConfigs[variant] || menuConfigs.user;
+  const menuItems = menuConfigs[resolvedVariant] || menuConfigs.user;
 
   const variantLabels = {
     user: { label: 'User', color: '#22c55e' },
@@ -51,7 +54,7 @@ export default function Layout({ variant = 'user' }) {
     admin: { label: 'Admin', color: '#ef4444' },
   };
 
-  const currentVariant = variantLabels[variant];
+  const currentVariant = variantLabels[resolvedVariant];
 
   const userMenuItems = [
     { key: 'logout', label: 'Logout', icon: <LogoutOutlined />, danger: true, onClick: handleLogout },
