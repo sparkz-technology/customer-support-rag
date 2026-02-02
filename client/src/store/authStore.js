@@ -8,22 +8,34 @@ export const useAuthStore = create(
       email: null,
       user: null,
       isAuthenticated: false,
-      
-      login: (token, user) => set({ 
-        token,
-        email: user.email,
-        user: { ...user, role: user.role ? String(user.role).toLowerCase() : user.role },
-        isAuthenticated: true,
-      }),
-      logout: () => set({ 
-        token: null, 
-        email: null, 
-        user: null, 
-        isAuthenticated: false 
-      }),
-      updateUser: (user) => set({ user: { ...user, role: user.role ? String(user.role).toLowerCase() : user.role }, email: user.email }),
+
+      login: (token, user) =>
+        set({
+          token,
+          email: user.email,
+          user: { ...user, role: user.role ? String(user.role).toLowerCase() : user.role },
+          isAuthenticated: true,
+        }),
+
+      logout: () =>
+        set({
+          token: null,
+          email: null,
+          user: null,
+          isAuthenticated: false,
+        }),
+
+      updateUser: (user) =>
+        set({
+          user: { ...user, role: user.role ? String(user.role).toLowerCase() : user.role },
+          email: user.email,
+        }),
     }),
-    { name: 'auth-storage' }
+    {
+      name: 'auth-storage',
+      // When rehydrating, prefer the current in-memory state over persisted values
+      merge: (persistedState, currentState) => ({ ...persistedState, ...currentState }),
+    }
   )
 );
 

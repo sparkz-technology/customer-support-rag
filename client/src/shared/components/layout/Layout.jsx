@@ -23,6 +23,11 @@ export default function Layout({ variant }) {
   // Resolve the UI variant: prefer explicit prop, otherwise derive from user role.
   const resolvedVariant = variant || (user?.role ? String(user.role).toLowerCase() : 'user');
 
+  // Debug: log resolved variant and user role to help diagnose incorrect label
+  // (remove in production)
+  // eslint-disable-next-line no-console
+  console.log('Layout: resolvedVariant=', resolvedVariant, 'user.role=', user?.role);
+
   const handleLogout = () => {
     logout();
     navigate('/login');

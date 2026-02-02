@@ -28,6 +28,7 @@ export default function LoginPage() {
   const verifyOtpMutation = useMutation({
     mutationFn: () => authApi.verifyOtp(email, otp),
     onSuccess: (data) => {
+      console.log('verify-res', data);
       login(data.sessionToken, data.user);
       toast.success(`Welcome back, ${data.user.name}!`);
       if (data.user.role === 'admin') {
