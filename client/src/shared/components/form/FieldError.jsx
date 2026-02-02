@@ -1,5 +1,5 @@
 /**
- * Form Field Component
+ * Field Error and Validated Form Components
  * 
  * Provides consistent field-level error highlighting and inline validation feedback.
  * 

@@ -125,7 +125,6 @@ describe('Feature: code-modularity-refactor, Property 10: JSX Extension Usage', 
           const hasJSX = containsJSX(filePath);
           const extension = getFileExtension(filePath);
           const fileName = path.basename(filePath);
-          
           // Skip excluded files that are intentionally .jsx
           if (EXCLUDED_JSX_FILES.includes(fileName)) return;
           
