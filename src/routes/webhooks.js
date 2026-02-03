@@ -1,10 +1,50 @@
 import { Router } from "express";
+import crypto from "crypto";
+import { CONFIG } from "../config/index.js";
+import { schemas } from "../services/validator.js";
 
 const router = Router();
 
+const safeEqual = (a, b) => {
+  if (!a || !b) return false;
+  const aBuf = Buffer.from(a);
+  const bBuf = Buffer.from(b);
+  if (aBuf.length !== bBuf.length) return false;
+  return crypto.timingSafeEqual(aBuf, bBuf);
+};
+
+const verifyWebhookAuth = (req) => {
+  if (!CONFIG.WEBHOOK_SECRET) return true;
+
+  const signature = req.header("x-webhook-signature");
+  const sharedSecret = req.header("x-webhook-secret");
+
+  if (signature) {
+    const expected = crypto
+      .createHmac("sha256", CONFIG.WEBHOOK_SECRET)
+      .update(JSON.stringify(req.body || {}))
+      .digest("hex");
+    return safeEqual(signature, expected);
+  }
+
+  if (sharedSecret) {
+    return safeEqual(sharedSecret, CONFIG.WEBHOOK_SECRET);
+  }
+
+  return false;
+};
+
 // Internal webhook receiver - logs ticket events
 router.post("/ticket-events", (req, res) => {
+  if (!verifyWebhookAuth(req)) {
+    return res.status(401).json({ error: "Invalid webhook signature" });
+  }
+
   const { event, ticket } = req.body;
+  const validation = schemas.webhookTicketEvent({ event, ticket });
+  if (!validation.valid) {
+    return res.status(400).json({ error: validation.errors[0], details: validation.errors });
+  }
   
   console.log("\n" + "=".repeat(50));
   console.log("🎫 TICKET WEBHOOK EVENT");

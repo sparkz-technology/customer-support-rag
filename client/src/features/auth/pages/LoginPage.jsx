@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Card, Input, Button, Typography, Space, Steps, Alert } from 'antd';
@@ -15,6 +15,10 @@ export default function LoginPage() {
   const [step, setStep] = useState(0);
   const navigate = useNavigate();
   const login = useAuthStore((s) => s.login);
+  const OTP_LENGTH = 6;
+  const lastOtpSubmittedRef = useRef(null);
+  const emailTrimmed = email.trim();
+  const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrimmed);
 
   const sendOtpMutation = useMutation({
     mutationFn: () => authApi.sendOtp(email),
@@ -26,7 +30,7 @@ export default function LoginPage() {
   });
 
   const verifyOtpMutation = useMutation({
-    mutationFn: () => authApi.verifyOtp(email, otp),
+    mutationFn: ({ email, otp }) => authApi.verifyOtp(email, otp),
     onSuccess: (data) => {
       console.log('verify-res', data);
       login(data.accessToken, data.refreshToken, data.user);
@@ -42,11 +46,31 @@ export default function LoginPage() {
     onError: (err) => toast.error(err.message),
   });
 
+  useEffect(() => {
+    if (step === 0) {
+      lastOtpSubmittedRef.current = null;
+      return;
+    }
+    if (otp.length < OTP_LENGTH) {
+      lastOtpSubmittedRef.current = null;
+      return;
+    }
+    if (verifyOtpMutation.isPending) return;
+    if (lastOtpSubmittedRef.current === otp) return;
+    lastOtpSubmittedRef.current = otp;
+    verifyOtpMutation.mutate({ email, otp });
+  }, [step, otp, email, verifyOtpMutation, OTP_LENGTH]);
+
   const handleSubmit = () => {
     if (step === 0) {
+      if (!emailTrimmed || !isEmailValid) {
+        toast.error('Please enter a valid email address');
+        return;
+      }
       sendOtpMutation.mutate();
     } else {
-      verifyOtpMutation.mutate();
+      lastOtpSubmittedRef.current = otp;
+      verifyOtpMutation.mutate({ email, otp });
     }
   };
 
@@ -109,9 +133,11 @@ export default function LoginPage() {
                 <Text strong style={{ display: 'block', marginBottom: 8 }}>Email Address</Text>
                 <Input
                   size="large"
+                  className="login-input"
                   prefix={<MailOutlined style={{ color: '#737373' }} />}
                   placeholder="you@example.com"
                   value={email}
+                  style={{ borderRadius: 12 }}
                   onChange={(e) => setEmail(e.target.value)}
                   onPressEnter={handleSubmit}
                 />
@@ -121,6 +147,7 @@ export default function LoginPage() {
                 size="large"
                 block
                 loading={isLoading}
+                disabled={!isEmailValid || !emailTrimmed}
                 onClick={handleSubmit}
                 style={{ height: 48 }}
               >
@@ -139,8 +166,9 @@ export default function LoginPage() {
                 <Text strong style={{ display: 'block', marginBottom: 8 }}>Enter OTP</Text>
                 <Input.OTP
                   size="large"
-                  length={6}
+                  length={OTP_LENGTH}
                   value={otp}
+                  autoFocus
                   onChange={setOtp}
                   style={{ width: '100%' }}
                 />
@@ -150,6 +178,7 @@ export default function LoginPage() {
                 size="large"
                 block
                 loading={isLoading}
+                disabled={otp.length < OTP_LENGTH}
                 onClick={handleSubmit}
                 style={{ height: 48 }}
               >

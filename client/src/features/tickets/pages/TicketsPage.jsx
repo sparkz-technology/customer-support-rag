@@ -76,6 +76,18 @@ export default function TicketsPage() {
     navigate(`/tickets/${result.ticket.id}`);
   };
 
+  const validateOptionalSubject = (_, value) => {
+    const trimmed = value?.trim();
+    if (!trimmed) return Promise.resolve();
+    if (trimmed.length < 3) {
+      return Promise.reject(new Error('Subject must be at least 3 characters'));
+    }
+    if (trimmed.length > 200) {
+      return Promise.reject(new Error('Subject must be at most 200 characters'));
+    }
+    return Promise.resolve();
+  };
+
   const tickets = data?.tickets || [];
   const filteredTickets = searchQuery 
     ? tickets.filter(t => t.subject.toLowerCase().includes(searchQuery.toLowerCase()) || t.category.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -243,10 +255,22 @@ export default function TicketsPage() {
 
       <Modal title="Create Ticket" open={createTicketModal} onCancel={closeCreateTicket} footer={null} width={400}>
         <Form form={form} layout="vertical" onFinish={handleCreate} initialValues={{ priority: 'medium' }} size="small">
-          <Form.Item name="subject" label="Subject" rules={[{ required: true }]}>
+          <Form.Item
+            name="subject"
+            label="Subject"
+            rules={[{ validator: validateOptionalSubject }]}
+          >
             <Input placeholder="Brief summary" />
           </Form.Item>
-          <Form.Item name="description" label="Description" rules={[{ required: true }]}>
+          <Form.Item
+            name="description"
+            label="Description"
+            rules={[
+              { required: true, whitespace: true, message: 'Description is required' },
+              { min: 10, message: 'Description must be at least 10 characters' },
+              { max: 5000, message: 'Description must be at most 5000 characters' },
+            ]}
+          >
             <TextArea rows={3} placeholder="Describe your issue..." />
           </Form.Item>
           <Form.Item name="priority" label="Priority">

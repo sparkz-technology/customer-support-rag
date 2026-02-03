@@ -119,6 +119,12 @@ body {
   box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.15) !important;
 }
 
+/* Login input: ensure rounded corners with affix wrapper */
+.login-input.ant-input-affix-wrapper,
+.login-input.ant-input {
+  border-radius: 12px !important;
+}
+
 .ant-switch-checked {
   background: #22c55e !important;
 }

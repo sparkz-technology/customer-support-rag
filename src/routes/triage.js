@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { runSimpleChat } from "../services/agent.js";
 import { requireAuth } from "../middleware/index.js";
+import { schemas } from "../services/validator.js";
 
 const router = Router();
 
@@ -9,8 +10,9 @@ router.post("/", requireAuth, async (req, res, next) => {
   try {
     const { description } = req.body;
 
-    if (!description || !description.trim()) {
-      return res.status(400).json({ error: "Message is required" });
+    const validation = schemas.triage({ description });
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.errors[0], details: validation.errors });
     }
 
     const response = await runSimpleChat(description, req.user.email);

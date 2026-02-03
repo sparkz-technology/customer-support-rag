@@ -15,6 +15,10 @@ export const getStats = async (req, res, next) => {
 export const getTickets = async (req, res, next) => {
   try {
     const { status, category, priority, page = 1, limit = 50 } = req.query;
+    const validation = schemas.listTickets({ status, category, priority, page, limit });
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.errors[0], details: validation.errors });
+    }
     const result = await adminService.getAllTickets({ status, category, priority, page, limit });
     res.json(result);
   } catch (err) {
@@ -101,6 +105,10 @@ export const deleteAgent = async (req, res, next) => {
 export const getUsers = async (req, res, next) => {
   try {
     const { role, page = 1, limit = 50 } = req.query;
+    const validation = schemas.listUsers({ role, page, limit });
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.errors[0], details: validation.errors });
+    }
     const result = await adminService.getUsers({ role, page, limit });
     res.json(result);
   } catch (err) {
@@ -142,6 +150,10 @@ export const updateUser = async (req, res, next) => {
 export const getCustomers = async (req, res, next) => {
   try {
     const { page = 1, limit = 50 } = req.query;
+    const validation = schemas.listCustomers({ page, limit });
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.errors[0], details: validation.errors });
+    }
     const result = await adminService.getCustomers({ page, limit });
     res.json(result);
   } catch (err) {
@@ -158,6 +170,10 @@ export const updateCustomer = async (req, res, next) => {
     }
 
     const { plan, name } = req.body;
+    const validation = schemas.updateCustomer({ plan, name });
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.errors[0], details: validation.errors });
+    }
     const result = await adminService.updateCustomer(id, { plan, name });
     res.json(result);
   } catch (err) {
@@ -172,6 +188,12 @@ export const updateCustomer = async (req, res, next) => {
 export const getAuditLogs = async (req, res, next) => {
   try {
     const { category, action, severity, search, startDate, endDate, page = 1, limit = 50 } = req.query;
+    const validation = schemas.listAuditLogs({ 
+      category, action, severity, search, startDate, endDate, page, limit 
+    });
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.errors[0], details: validation.errors });
+    }
     const result = await adminService.getAuditLogs({ 
       category, action, severity, search, startDate, endDate, page, limit 
     });

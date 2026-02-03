@@ -128,12 +128,56 @@ export default function AdminAgentsPage() {
 
       <Modal title="Add New Agent" open={showForm} onCancel={() => setShowForm(false)} footer={null} width={400}>
         <Form form={form} layout="vertical" onFinish={(values) => createMutation.mutate(values)} initialValues={{ maxLoad: 10, categories: [] }} size="small">
-          <Form.Item name="name" label="Name" rules={[{ required: true }]}><Input placeholder="Agent name" /></Form.Item>
-          <Form.Item name="email" label="Email" rules={[{ required: true, type: 'email' }]}><Input placeholder="agent@example.com" /></Form.Item>
-          <Form.Item name="categories" label="Categories">
+          <Form.Item
+            name="name"
+            label="Name"
+            rules={[
+              { required: true, message: 'Name is required' },
+              { min: 2, message: 'Name must be at least 2 characters' },
+              { max: 100, message: 'Name must be at most 100 characters' },
+            ]}
+          >
+            <Input placeholder="Agent name" />
+          </Form.Item>
+          <Form.Item
+            name="email"
+            label="Email"
+            rules={[{ required: true, message: 'Email is required' }, { type: 'email', message: 'Enter a valid email' }]}
+          >
+            <Input placeholder="agent@example.com" />
+          </Form.Item>
+          <Form.Item
+            name="categories"
+            label="Categories"
+            rules={[
+              {
+                validator: (_, value) => {
+                  if (!value || value.length <= 6) return Promise.resolve();
+                  return Promise.reject(new Error('Select up to 6 categories'));
+                },
+              },
+            ]}
+          >
             <Select mode="multiple" placeholder="Select categories" options={categories.map((c) => ({ value: c, label: c }))} />
           </Form.Item>
-          <Form.Item name="maxLoad" label="Max Workload"><Input type="number" min={1} max={50} /></Form.Item>
+          <Form.Item
+            name="maxLoad"
+            label="Max Workload"
+            rules={[
+              { required: true, message: 'Max workload is required' },
+              {
+                validator: (_, value) => {
+                  if (value === undefined || value === null || value === '') return Promise.resolve();
+                  const num = Number(value);
+                  if (Number.isNaN(num)) return Promise.reject(new Error('Max workload must be a number'));
+                  if (num < 1 || num > 100) return Promise.reject(new Error('Max workload must be between 1 and 100'));
+                  return Promise.resolve();
+                },
+              },
+            ]}
+          >
+            <Input type="number" min={1} max={100} />
+          </Form.Item>
           <Form.Item><Button type="primary" htmlType="submit" loading={createMutation.isPending} block>Create Agent</Button></Form.Item>
         </Form>
       </Modal>

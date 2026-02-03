@@ -1,5 +1,5 @@
 import * as agentService from "../services/agent/agent-panel.service.js";
-import { isValidObjectId, sanitizeString } from "../services/validator.js";
+import { isValidObjectId, sanitizeString, schemas } from "../services/validator.js";
 
 const VALID_STATUSES = ["open", "in-progress", "resolved", "closed"];
 const VALID_PRIORITIES = ["low", "medium", "high", "urgent"];
@@ -8,6 +8,10 @@ const VALID_CATEGORIES = ["account", "billing", "technical", "gameplay", "securi
 export const getTickets = async (req, res, next) => {
   try {
     const { status, category, priority, needsManualReview, assignedToMe, page = 1, limit = 20 } = req.query;
+    const validation = schemas.listAgentTickets({ status, category, priority, needsManualReview, assignedToMe, page, limit });
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.errors[0], details: validation.errors });
+    }
     const result = await agentService.getTickets({
       status,
       category,

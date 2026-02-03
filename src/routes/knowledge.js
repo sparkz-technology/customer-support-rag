@@ -2,6 +2,7 @@ import { Router } from "express";
 import { Document } from "@langchain/core/documents";
 import { addDocuments, searchWithScores } from "../services/rag.js";
 import { requireAuth, uploadText } from "../middleware/index.js";
+import { schemas } from "../services/validator.js";
 
 const router = Router();
 
@@ -14,6 +15,10 @@ router.post("/upload", requireAuth, uploadText.single("file"), async (req, res, 
 
     const content = req.file.buffer.toString("utf-8");
     const { category, topic } = req.body;
+    const validation = schemas.knowledgeUpload({ category, topic });
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.errors[0], details: validation.errors });
+    }
 
     // Split content into chunks (by paragraphs or fixed size)
     const chunks = splitIntoChunks(content, 1000);
@@ -51,8 +56,9 @@ router.post("/documents", requireAuth, async (req, res, next) => {
   try {
     const { documents } = req.body;
 
-    if (!documents || !Array.isArray(documents)) {
-      return res.status(400).json({ error: "Documents array required" });
+    const validation = schemas.knowledgeDocuments({ documents });
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.errors[0], details: validation.errors });
     }
 
     const docs = documents.map(
@@ -75,8 +81,9 @@ router.get("/search", requireAuth, async (req, res, next) => {
   try {
     const { q, limit = 5 } = req.query;
 
-    if (!q) {
-      return res.status(400).json({ error: "Query parameter 'q' required" });
+    const validation = schemas.knowledgeSearch({ q, limit });
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.errors[0], details: validation.errors });
     }
 
     const results = await searchWithScores(q, parseInt(limit));

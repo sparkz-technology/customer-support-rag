@@ -26,6 +26,10 @@ export const createTicket = async (req, res, next) => {
 export const getTickets = async (req, res, next) => {
   try {
     const { status, category, page = 1, limit = 20 } = req.query;
+    const validation = schemas.listTickets({ status, category, page, limit });
+    if (!validation.valid) {
+      return res.status(400).json({ error: validation.errors[0], details: validation.errors });
+    }
     const result = await ticketService.getUserTickets({
       email: req.user.email,
       status,
