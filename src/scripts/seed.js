@@ -1,16 +1,22 @@
 import mongoose from "mongoose";
-import dotenv from "dotenv";
+import { CONFIG } from "../config/index.js";
+import { connectDB } from "../config/database.js";
 import { User, Agent, Ticket, Customer, AuditLog } from "../models/index.js";
 
-dotenv.config();
+const isProduction = process.env.NODE_ENV === "production";
+const force = process.argv.includes("--force") || process.env.SEED_FORCE === "true";
 
-const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/support-ai";
+if (isProduction && !force) {
+  console.error("✗ Refusing to seed in production without --force or SEED_FORCE=true");
+  process.exit(1);
+}
 
 // Agents data
 const agents = [
   { email: "john@support.com", name: "John Smith", categories: ["technical", "gameplay"], maxLoad: 10 },
   { email: "sarah@support.com", name: "Sarah Johnson", categories: ["billing", "account"], maxLoad: 8 },
   { email: "mike@support.com", name: "Mike Wilson", categories: ["security", "technical"], maxLoad: 12 },
+  { email: "alex@support.com", name: "Alex Rivera", categories: ["general"], maxLoad: 6 },
 ];
 
 // Customers data
@@ -30,6 +36,7 @@ const ticketTemplates = [
     category: "account",
     priority: "high",
     status: "open",
+    assigned: true,
     conversation: [
       { role: "customer", content: "I've been trying to login for the past hour but keep getting 'Invalid credentials' error." },
     ],
@@ -40,6 +47,7 @@ const ticketTemplates = [
     category: "billing",
     priority: "urgent",
     status: "in-progress",
+    assigned: true,
     conversation: [
       { role: "customer", content: "I was charged twice for my monthly subscription. Order #12345" },
       { role: "agent", content: "I apologize for the inconvenience. I can see the duplicate charge. Processing refund now." },
@@ -52,6 +60,7 @@ const ticketTemplates = [
     category: "technical",
     priority: "high",
     status: "open",
+    assigned: false,
     conversation: [
       { role: "customer", content: "Game crashes on startup. Windows 11, RTX 3080, 32GB RAM." },
     ],
@@ -62,6 +71,7 @@ const ticketTemplates = [
     category: "gameplay",
     priority: "medium",
     status: "in-progress",
+    assigned: true,
     conversation: [
       { role: "customer", content: "Purchased Battle Pass but items are missing. TXN-789456" },
       { role: "agent", content: "I've verified your purchase. The items should appear within 24 hours." },
@@ -73,7 +83,8 @@ const ticketTemplates = [
     category: "security",
     priority: "urgent",
     status: "open",
-    slaBreached: true,
+    assigned: true,
+    slaOffsetHours: -2,
     conversation: [
       { role: "customer", content: "Someone tried to access my account from Russia. I'm in the US!" },
     ],
@@ -84,6 +95,7 @@ const ticketTemplates = [
     category: "account",
     priority: "low",
     status: "resolved",
+    assigned: true,
     conversation: [
       { role: "customer", content: "How do I change my username?" },
       { role: "agent", content: "Go to Settings > Profile > Edit Display Name. You can change it once every 30 days." },
@@ -96,6 +108,7 @@ const ticketTemplates = [
     category: "billing",
     priority: "medium",
     status: "open",
+    assigned: true,
     conversation: [
       { role: "customer", content: "Bought wrong DLC by mistake. Order #DLC-2024-001" },
     ],
@@ -106,6 +119,8 @@ const ticketTemplates = [
     category: "technical",
     priority: "medium",
     status: "in-progress",
+    assigned: true,
+    slaOffsetHours: 2,
     conversation: [
       { role: "customer", content: "Lag spikes every 2-3 minutes. Ping goes from 30ms to 500ms+" },
       { role: "agent", content: "This might be server-related. Which region are you playing on?" },
@@ -118,6 +133,7 @@ const ticketTemplates = [
     category: "security",
     priority: "high",
     status: "open",
+    assigned: false,
     conversation: [
       { role: "customer", content: "Account banned for 'cheating' but I've never used any hacks!" },
     ],
@@ -128,6 +144,7 @@ const ticketTemplates = [
     category: "billing",
     priority: "low",
     status: "resolved",
+    assigned: true,
     conversation: [
       { role: "customer", content: "Promo code SUMMER2024 not working" },
       { role: "agent", content: "That code expired on July 31st. Here's a new code: FALL2024 for 15% off." },
@@ -140,9 +157,12 @@ const ticketTemplates = [
     category: "technical",
     priority: "urgent",
     status: "open",
-    slaBreached: true,
+    assigned: true,
+    slaOffsetHours: -5,
+    needsManualReview: true,
     conversation: [
       { role: "customer", content: "Lost all my progress AGAIN! This is the second time!" },
+      { role: "system", content: "AI response unavailable. This ticket has been marked for manual review by a support agent." },
     ],
   },
   {
@@ -151,10 +171,38 @@ const ticketTemplates = [
     category: "security",
     priority: "low",
     status: "resolved",
+    assigned: true,
     conversation: [
       { role: "customer", content: "Where is the 2FA option?" },
       { role: "agent", content: "Go to Account Settings > Security > Enable Two-Factor Authentication" },
       { role: "customer", content: "Got it, enabled now. Thanks!" },
+    ],
+  },
+  {
+    subject: "Subscription canceled unexpectedly",
+    description: "My subscription shows as canceled, but I did not cancel it. Please check.",
+    category: "billing",
+    priority: "high",
+    status: "closed",
+    assigned: true,
+    conversation: [
+      { role: "customer", content: "Subscription canceled without my action." },
+      { role: "agent", content: "We confirmed it was a billing failure. You can resubscribe anytime." },
+      { role: "system", content: "Ticket closed by agent" },
+    ],
+  },
+  {
+    subject: "Reopened: Issue persists after fix",
+    description: "The crash still happens after the suggested fix. Reopening.",
+    category: "technical",
+    priority: "high",
+    status: "in-progress",
+    assigned: true,
+    reopenCount: 1,
+    conversation: [
+      { role: "customer", content: "The crash still happens after the fix." },
+      { role: "system", content: "Ticket reopened due to customer reply" },
+      { role: "agent", content: "Thanks for confirming. Please share the latest logs." },
     ],
   },
 ];
@@ -162,8 +210,8 @@ const ticketTemplates = [
 async function seed() {
   try {
     console.log("Connecting to MongoDB...");
-    await mongoose.connect(MONGO_URI);
-    console.log("Connected!\n");
+    await connectDB();
+    console.log(`Using database: ${CONFIG.MONGO_URI}\n`);
 
     // Drop all collections
     console.log("Dropping existing data...");
@@ -191,7 +239,7 @@ async function seed() {
     
     // Admin user (role stored in database, not hardcoded)
     const adminUser = {
-      email: "admin@example.com",
+      email: "admin@gmail.com",
       name: "Admin User",
       role: "admin",
     };
@@ -219,27 +267,55 @@ async function seed() {
     console.log("Creating tickets...");
     const SLA_HOURS = { low: 72, medium: 48, high: 24, urgent: 8 };
     
+    const now = new Date();
+    const HOUR = 60 * 60 * 1000;
+    const MIN = 60 * 1000;
+
     const tickets = ticketTemplates.map((template, index) => {
       const customer = createdCustomers[index % createdCustomers.length];
-      const assignedAgent = template.status !== "open" ? createdAgents[index % createdAgents.length] : null;
-      const createdAt = new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000);
-      const slaHours = SLA_HOURS[template.priority];
-      const slaDueAt = new Date(createdAt.getTime() + slaHours * 60 * 60 * 1000);
+      const slaHours = SLA_HOURS[template.priority] || 48;
+      const assignedAgent = template.assigned === false ? null : createdAgents[index % createdAgents.length];
+
+      let slaDueAt;
+      let createdAt;
+      if (typeof template.slaOffsetHours === "number") {
+        slaDueAt = new Date(now.getTime() + template.slaOffsetHours * HOUR);
+        createdAt = new Date(slaDueAt.getTime() - slaHours * HOUR);
+      } else {
+        createdAt = new Date(now.getTime() - (Math.random() * 7 + 1) * 24 * HOUR);
+        slaDueAt = new Date(createdAt.getTime() + slaHours * HOUR);
+      }
+
+      const conversation = template.conversation.map((msg, i) => ({
+        ...msg,
+        timestamp: new Date(createdAt.getTime() + (i + 1) * 15 * MIN),
+      }));
+      const firstAgentMessage = conversation.find(m => m.role === "agent");
+      const firstResponseAt = firstAgentMessage?.timestamp;
+      const resolvedAt = ["resolved", "closed"].includes(template.status)
+        ? new Date(createdAt.getTime() + Math.min(slaHours - 1, 12) * HOUR)
+        : undefined;
+      const reopenCount = template.reopenCount || 0;
+      const reopenedAt = reopenCount > 0
+        ? new Date(now.getTime() - 6 * HOUR)
+        : undefined;
       
+      const { assigned: _assigned, slaOffsetHours: _slaOffsetHours, ...templateData } = template;
+
       return {
-        ...template,
+        ...templateData,
         customerId: customer._id,
         customerEmail: customer.email,
         assignedTo: assignedAgent?._id,
         slaDueAt,
-        slaBreached: template.slaBreached || slaDueAt < new Date(),
-        resolvedAt: template.status === "resolved" ? new Date() : undefined,
-        firstResponseAt: template.conversation.some(m => m.role === "agent") ? new Date(createdAt.getTime() + 30 * 60 * 1000) : undefined,
         createdAt,
-        conversation: template.conversation.map((msg, i) => ({
-          ...msg,
-          timestamp: new Date(createdAt.getTime() + i * 15 * 60 * 1000),
-        })),
+        conversation,
+        slaBreached: slaDueAt < now,
+        resolvedAt,
+        firstResponseAt,
+        needsManualReview: template.needsManualReview || false,
+        reopenCount,
+        reopenedAt,
       };
     });
 
@@ -261,8 +337,8 @@ async function seed() {
     console.log("Creating audit logs...");
     const auditLogs = [
       { action: "system.startup", category: "system", description: "System initialized", severity: "info" },
-      { action: "user.login", category: "user", userEmail: "admin@example.com", userName: "Admin User", description: "Admin logged in", severity: "info" },
-      { action: "agent.created", category: "agent", userEmail: "admin@example.com", description: "Agent John Smith created", targetType: "agent", severity: "info" },
+      { action: "user.login", category: "user", userEmail: "admin@gmail.com", userName: "Admin User", description: "Admin logged in", severity: "info" },
+      { action: "agent.created", category: "agent", userEmail: "admin@gmail.com", description: "Agent John Smith created", targetType: "agent", severity: "info" },
       { action: "ticket.created", category: "ticket", userEmail: "player1@gmail.com", description: "New ticket: Cannot login to my account", severity: "info" },
       { action: "ticket.sla_breached", category: "ticket", description: "SLA breached for ticket: Account security concern", severity: "warning" },
     ];
