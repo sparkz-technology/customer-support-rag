@@ -1,7 +1,8 @@
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Spin } from 'antd';
 import { useAuthStore } from './store/authStore';
+import { authApi } from './api/client';
 import Layout from './shared/components/layout/Layout';
 
 // Import route guards from app/guards
@@ -49,6 +50,32 @@ function LoadingFallback() {
 
 function App() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const hasHydrated = useAuthStore((s) => s.hasHydrated);
+  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
+  const setSession = useAuthStore((s) => s.setSession);
+  const logout = useAuthStore((s) => s.logout);
+
+  useEffect(() => {
+    if (!hasHydrated) return;
+    if (token && !user) {
+      authApi.getMe()
+        .then((res) => {
+          if (res?.user) {
+            setSession(res.user);
+          } else {
+            logout();
+          }
+        })
+        .catch(() => {
+          logout();
+        });
+    }
+  }, [hasHydrated, token, user, setSession, logout]);
+
+  if (!hasHydrated) {
+    return <LoadingFallback />;
+  }
 
   return (
     <BrowserRouter>
@@ -111,9 +138,10 @@ function App() {
               </ProtectedRoute>
             }
           >
-            <Route path="/admin" element={<AdminDashboardPage />} />
-            <Route path="/admin/tickets" element={<AdminTicketsPage />} />
-            <Route path="/admin/agents" element={<AdminAgentsPage />} />
+          <Route path="/admin" element={<AdminDashboardPage />} />
+          <Route path="/admin/tickets" element={<AdminTicketsPage />} />
+          <Route path="/admin/tickets/:id" element={<AgentChatPage backPath="/admin/tickets" />} />
+          <Route path="/admin/agents" element={<AdminAgentsPage />} />
             <Route path="/admin/users" element={<AdminUsersPage />} />
             <Route path="/admin/audit-log" element={<AdminAuditLogPage />} />
           </Route>

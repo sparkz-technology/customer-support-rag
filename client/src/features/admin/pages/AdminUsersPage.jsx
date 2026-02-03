@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminApi } from '../api/adminApi';
 import toast from 'react-hot-toast';
-import { Card, Table, Select, Tag, Space, Typography, Avatar } from 'antd';
+import { Card, Table, Select, Tag, Space, Typography, Avatar, Button } from 'antd';
 import { UserOutlined, TeamOutlined, SafetyOutlined, ClockCircleOutlined } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
@@ -10,6 +10,8 @@ const { Title, Text } = Typography;
 export default function AdminUsersPage() {
   const queryClient = useQueryClient();
   const [roleFilter, setRoleFilter] = useState('');
+  const filterButtonStyle = { height: 24, padding: '0 8px' };
+  const handleResetRole = () => setRoleFilter('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-users', roleFilter],
@@ -93,8 +95,11 @@ export default function AdminUsersPage() {
           <Title level={4} style={{ margin: 0 }}>Manage Users</Title>
           <Text type="secondary" style={{ fontSize: 12 }}>{data?.pagination?.total || 0} users</Text>
         </div>
-        <Select value={roleFilter || 'all'} onChange={(v) => setRoleFilter(v === 'all' ? '' : v)} style={{ width: 120 }} size="small"
-          options={[{ value: 'all', label: 'All Roles' }, { value: 'user', label: 'Users' }, { value: 'agent', label: 'Agents' }, { value: 'admin', label: 'Admins' }]} />
+        <Space size={8} className="filter-bar">
+          <Select value={roleFilter || 'all'} onChange={(v) => setRoleFilter(v === 'all' ? '' : v)} style={{ width: 120 }} size="small"
+            options={[{ value: 'all', label: 'All Roles' }, { value: 'user', label: 'Users' }, { value: 'agent', label: 'Agents' }, { value: 'admin', label: 'Admins' }]} />
+          <Button size="small" onClick={handleResetRole} style={filterButtonStyle}>Reset</Button>
+        </Space>
       </div>
 
       <Card size="small" styles={{ body: { padding: 0 } }} style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>

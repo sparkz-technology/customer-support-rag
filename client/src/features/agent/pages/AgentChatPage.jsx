@@ -13,7 +13,7 @@ import { getSLAStatus } from '../../tickets/utils/slaUtils';
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 
-export default function AgentChatPage() {
+export default function AgentChatPage({ backPath = '/agent/tickets' }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const [message, setMessage] = useState('');
@@ -53,7 +53,7 @@ export default function AgentChatPage() {
     return (
       <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Empty description="Ticket not found">
-          <Button onClick={() => navigate('/agent/tickets')}>Back to tickets</Button>
+          <Button onClick={() => navigate(backPath)}>Back to tickets</Button>
         </Empty>
       </div>
     );
@@ -73,7 +73,7 @@ export default function AgentChatPage() {
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#1a1a1a' }}>
       {/* Header */}
       <div style={{ padding: '12px 16px', borderBottom: '1px solid #303030', display: 'flex', alignItems: 'center', gap: 12 }}>
-        <Button size="small" icon={<ArrowLeftOutlined />} onClick={() => navigate('/agent/tickets')} />
+        <Button size="small" icon={<ArrowLeftOutlined />} onClick={() => navigate(backPath)} />
         <div style={{ flex: 1 }}>
           <Title level={5} style={{ margin: 0, fontSize: 14 }}>{ticket.subject}</Title>
           <Space size={4} style={{ marginTop: 2 }} wrap>

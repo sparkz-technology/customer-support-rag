@@ -12,7 +12,9 @@ const UserSchema = new mongoose.Schema({
   agentId: { type: mongoose.Schema.Types.ObjectId, ref: "Agent" },
   otp: String,
   otpExpires: Date,
-  sessionToken: String,
+  sessionToken: String, // legacy
+  refreshTokenHash: String,
+  refreshTokenExpires: Date,
   lastSeen: { type: Date, default: Date.now },
 });
 

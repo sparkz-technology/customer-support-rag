@@ -29,7 +29,7 @@ export default function LoginPage() {
     mutationFn: () => authApi.verifyOtp(email, otp),
     onSuccess: (data) => {
       console.log('verify-res', data);
-      login(data.sessionToken, data.user);
+      login(data.accessToken, data.refreshToken, data.user);
       toast.success(`Welcome back, ${data.user.name}!`);
       if (data.user.role === 'admin') {
         navigate('/admin');

@@ -10,6 +10,7 @@ import {
   AuditOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '../../../store/authStore';
+import { authApi } from '../../../api/client';
 
 const { Sider, Content } = AntLayout;
 const { Text } = Typography;
@@ -29,6 +30,7 @@ export default function Layout({ variant }) {
   console.log('Layout: resolvedVariant=', resolvedVariant, 'user.role=', user?.role);
 
   const handleLogout = () => {
+    authApi.logout().catch(() => {});
     logout();
     navigate('/login');
   };
@@ -45,6 +47,7 @@ export default function Layout({ variant }) {
     ],
     admin: [
       { key: '/admin', icon: <DashboardOutlined />, label: 'Dashboard' },
+      { key: '/admin/tickets', icon: <FileTextOutlined />, label: 'Tickets' },
       { key: '/admin/agents', icon: <TeamOutlined />, label: 'Agents' },
       { key: '/admin/users', icon: <UserOutlined />, label: 'Users' },
       { key: '/admin/audit-log', icon: <AuditOutlined />, label: 'Audit Log' },
@@ -69,6 +72,7 @@ export default function Layout({ variant }) {
     const path = location.pathname;
     if (path === '/dashboard' || path === '/agent' || path === '/admin') return path;
     if (path.startsWith('/agent/tickets')) return '/agent/tickets';
+    if (path.startsWith('/admin/tickets')) return '/admin/tickets';
     if (path.startsWith('/admin/agents')) return '/admin/agents';
     if (path.startsWith('/admin/users')) return '/admin/users';
     if (path.startsWith('/admin/audit-log')) return '/admin/audit-log';

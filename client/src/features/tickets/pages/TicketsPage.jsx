@@ -26,6 +26,7 @@ export default function TicketsPage() {
   const { ticketFilter, setTicketFilter, categoryFilter, setCategoryFilter, createTicketModal, openCreateTicket, closeCreateTicket } = useUIStore();
   const tableRef = useRef(null);
   const scrollPositionRef = useRef(0);
+  const filterButtonStyle = { height: 24, padding: '0 8px' };
   
   // Build filter object for API call
   const filterParams = {};
@@ -62,6 +63,11 @@ export default function TicketsPage() {
   const createMutation = useCreateTicket();
   const [searchQuery, setSearchQuery] = useState('');
   const [form] = Form.useForm();
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setTicketFilter('');
+    setCategoryFilter('');
+  };
 
   const handleCreate = async (values) => {
     const result = await createMutation.mutateAsync(values);
@@ -187,7 +193,7 @@ export default function TicketsPage() {
       </div>
 
       <Card size="small" styles={{ body: { padding: 8 } }} style={{ flexShrink: 0 }}>
-        <Space wrap size="small">
+        <Space wrap size="small" className="filter-bar">
           <Input
             placeholder="Search..."
             prefix={<SearchOutlined />}
@@ -217,6 +223,7 @@ export default function TicketsPage() {
             options={CATEGORY_OPTIONS}
             placeholder="Category"
           />
+          <Button size="small" onClick={handleResetFilters} style={filterButtonStyle}>Reset</Button>
         </Space>
       </Card>
 

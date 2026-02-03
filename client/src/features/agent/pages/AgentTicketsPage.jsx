@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAgentTickets } from '../api/useAgent';
-import { Card, Table, Tag, Select, Space, Typography, Switch, Badge, Tooltip } from 'antd';
+import { Card, Table, Tag, Select, Space, Typography, Switch, Badge, Tooltip, Button } from 'antd';
 import {
   ClockCircleOutlined,
   CheckCircleOutlined,
@@ -20,6 +20,7 @@ export default function AgentTicketsPage() {
   const [searchParams] = useSearchParams();
   const tableRef = useRef(null);
   const scrollPositionRef = useRef(0);
+  const filterButtonStyle = { height: 24, padding: '0 8px' };
   const [filters, setFilters] = useState({
     status: searchParams.get('status') || '',
     category: searchParams.get('category') || '',
@@ -27,6 +28,15 @@ export default function AgentTicketsPage() {
     assignedToMe: searchParams.get('assignedToMe') === 'true',
     needsManualReview: searchParams.get('needsManualReview') === 'true',
   });
+  const handleResetFilters = () => {
+    setFilters({
+      status: '',
+      category: '',
+      priority: '',
+      assignedToMe: false,
+      needsManualReview: false,
+    });
+  };
 
   // Save scroll position before refetch
   const saveScrollPosition = useCallback(() => {
@@ -202,7 +212,7 @@ export default function AgentTicketsPage() {
       </div>
 
       <Card size="small" styles={{ body: { padding: 12 } }} style={{ flexShrink: 0 }}>
-        <Space wrap size={8}>
+        <Space wrap size={8} className="filter-bar">
           <Select
             value={filters.status || 'all'}
             onChange={(v) => setFilters({ ...filters, status: v === 'all' ? '' : v })}
@@ -260,6 +270,7 @@ export default function AgentTicketsPage() {
             />
             <Text style={{ fontSize: 12 }}>Needs Review</Text>
           </Space>
+          <Button size="small" onClick={handleResetFilters} style={filterButtonStyle}>Reset</Button>
         </Space>
       </Card>
 

@@ -7,6 +7,7 @@ const router = Router();
 // Public routes
 router.post("/send-otp", authLimiter, authController.sendOTP);
 router.post("/verify-otp", authLimiter, authController.verifyOTP);
+router.post("/refresh", authController.refresh);
 
 // Protected routes
 router.post("/logout", requireAuth, authController.logout);

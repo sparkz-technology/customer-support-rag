@@ -36,6 +36,25 @@ export const verifyOTP = async (req, res, next) => {
   }
 };
 
+export const refresh = async (req, res, next) => {
+  try {
+    const { refreshToken } = req.body;
+    const result = await authService.refreshTokens(refreshToken);
+    res.json(result);
+  } catch (err) {
+    if (
+      err.message === "Refresh token required" ||
+      err.message === "Invalid or expired refresh token" ||
+      err.message === "Invalid refresh token" ||
+      err.message === "Refresh token expired" ||
+      err.message === "Refresh token mismatch"
+    ) {
+      return res.status(401).json({ error: err.message });
+    }
+    next(err);
+  }
+};
+
 export const logout = async (req, res, next) => {
   try {
     await authService.logout(req.user, req);

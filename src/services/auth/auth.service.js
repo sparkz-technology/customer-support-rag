@@ -1,10 +1,48 @@
 import crypto from "crypto";
+import jwt from "jsonwebtoken";
 import { Customer, User, Agent } from "../../models/index.js";
+import { CONFIG } from "../../config/index.js";
 import { sendOTPEmail } from "./email.js";
 import { auditLogger } from "../admin/audit-log.js";
 import { sanitizeString } from "../validator.js";
 
 const isDev = process.env.NODE_ENV !== "production";
+
+const hashToken = (token) =>
+  crypto.createHash("sha256").update(token).digest("hex");
+
+const parseDurationMs = (value) => {
+  if (!value) return 0;
+  if (typeof value === "number") return value * 1000;
+  const match = String(value).trim().match(/^(\d+)(s|m|h|d)$/i);
+  if (!match) return 0;
+  const amount = Number(match[1]);
+  const unit = match[2].toLowerCase();
+  const multipliers = { s: 1000, m: 60 * 1000, h: 60 * 60 * 1000, d: 24 * 60 * 60 * 1000 };
+  return amount * (multipliers[unit] || 1000);
+};
+
+const issueTokens = async (user) => {
+  const accessToken = jwt.sign(
+    { sub: user._id.toString(), role: user.role },
+    CONFIG.JWT_SECRET,
+    { expiresIn: CONFIG.JWT_ACCESS_TTL }
+  );
+
+  const tokenId = crypto.randomBytes(16).toString("hex");
+  const refreshToken = jwt.sign(
+    { sub: user._id.toString(), tokenId },
+    CONFIG.JWT_REFRESH_SECRET,
+    { expiresIn: CONFIG.JWT_REFRESH_TTL }
+  );
+
+  const refreshTokenExpires = new Date(Date.now() + parseDurationMs(CONFIG.JWT_REFRESH_TTL));
+  user.refreshTokenHash = hashToken(refreshToken);
+  user.refreshTokenExpires = refreshTokenExpires;
+  await user.save();
+
+  return { accessToken, refreshToken };
+};
 
 export const sendOTP = async (email) => {
   const normalizedEmail = email.trim().toLowerCase();
@@ -73,8 +111,8 @@ export const verifyOTP = async (email, otp, req) => {
     throw new Error("Invalid or expired OTP");
   }
 
-  const token = crypto.randomBytes(32).toString("hex");
-  user.sessionToken = token;
+  const legacyToken = crypto.randomBytes(32).toString("hex");
+  user.sessionToken = legacyToken;
   user.otp = undefined;
   user.otpExpires = undefined;
   user.lastSeen = new Date();
@@ -82,17 +120,61 @@ export const verifyOTP = async (email, otp, req) => {
 
   await auditLogger.userLogin(user, req);
 
+  const { accessToken, refreshToken } = await issueTokens(user);
+
   return { 
     success: true, 
-    sessionToken: token,
+    accessToken,
+    refreshToken,
     user: formatUserResponse(user),
   };
 };
 
 export const logout = async (user, req) => {
   user.sessionToken = undefined;
+  user.refreshTokenHash = undefined;
+  user.refreshTokenExpires = undefined;
   await user.save();
   await auditLogger.userLogout(user, req);
+};
+
+export const refreshTokens = async (refreshToken) => {
+  if (!refreshToken) {
+    throw new Error("Refresh token required");
+  }
+
+  let payload;
+  try {
+    payload = jwt.verify(refreshToken, CONFIG.JWT_REFRESH_SECRET);
+  } catch (err) {
+    throw new Error("Invalid or expired refresh token");
+  }
+
+  const user = await User.findById(payload.sub)
+    .populate("customerId")
+    .populate("agentId");
+
+  if (!user || !user.refreshTokenHash) {
+    throw new Error("Invalid refresh token");
+  }
+
+  if (user.refreshTokenExpires && user.refreshTokenExpires < new Date()) {
+    throw new Error("Refresh token expired");
+  }
+
+  const incomingHash = hashToken(refreshToken);
+  if (incomingHash !== user.refreshTokenHash) {
+    throw new Error("Refresh token mismatch");
+  }
+
+  const { accessToken, refreshToken: newRefreshToken } = await issueTokens(user);
+
+  return {
+    success: true,
+    accessToken,
+    refreshToken: newRefreshToken,
+    user: formatUserResponse(user),
+  };
 };
 
 export const formatUserResponse = (user) => ({

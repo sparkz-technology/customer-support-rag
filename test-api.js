@@ -3,11 +3,11 @@ import "dotenv/config";
 const BASE_URL = `http://localhost:${process.env.PORT || 3000}`;
 const TEST_EMAIL = "test@example.com";
 
-let sessionToken = null;
+let accessToken = null;
 
 async function request(method, path, body = null) {
   const headers = { "Content-Type": "application/json" };
-  if (sessionToken) headers["x-session-token"] = sessionToken;
+  if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
   
   const res = await fetch(BASE_URL + path, {
     method,
@@ -29,13 +29,13 @@ async function runTests() {
     const otpRes = await request("POST", "/api/auth/send-otp", { email: TEST_EMAIL });
     console.log("   ✓", otpRes.success ? "OTP sent" : "Error:", otpRes);
 
-    // Step 2: Verify OTP and get session token
+    // Step 2: Verify OTP and get access token
     console.log("\n2. POST /api/auth/verify-otp");
     const authRes = await request("POST", "/api/auth/verify-otp", { email: TEST_EMAIL, otp: "123456" });
-    sessionToken = authRes.sessionToken;
-    console.log("   ✓ Session Token:", sessionToken ? "Received" : "Failed");
+    accessToken = authRes.accessToken;
+    console.log("   ✓ Access Token:", accessToken ? "Received" : "Failed");
 
-    if (!sessionToken) {
+    if (!accessToken) {
       console.log("\n✗ Failed to authenticate. Stopping tests.");
       return;
     }

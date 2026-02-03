@@ -14,6 +14,7 @@ const { RangePicker } = DatePicker;
 export default function AdminAuditLogPage() {
   const [filters, setFilters] = useState({ category: '', action: '', severity: '', search: '', page: 1 });
   const [dateRange, setDateRange] = useState(null);
+  const filterButtonStyle = { height: 24, padding: '0 8px' };
 
   const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ['admin-audit-logs', filters, dateRange],
@@ -138,7 +139,7 @@ export default function AdminAuditLogPage() {
 
       {/* Filters */}
       <Card size="small" styles={{ body: { padding: 12 } }} style={{ flexShrink: 0 }}>
-        <Space wrap size={8}>
+        <Space wrap size={8} className="filter-bar">
           <Input
             placeholder="Search..."
             prefix={<SearchOutlined />}
@@ -176,7 +177,7 @@ export default function AdminAuditLogPage() {
             ]}
           />
           <RangePicker size="small" value={dateRange} onChange={setDateRange} style={{ width: 220 }} />
-          <Button size="small" onClick={handleReset}>Reset</Button>
+          <Button size="small" onClick={handleReset} style={filterButtonStyle}>Reset</Button>
         </Space>
       </Card>
 

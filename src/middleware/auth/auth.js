@@ -1,13 +1,37 @@
-import { User, Agent } from "../../models/index.js";
+import jwt from "jsonwebtoken";
+import { User } from "../../models/index.js";
+import { CONFIG } from "../../config/index.js";
 
 export const requireAuth = async (req, res, next) => {
-  const token = req.headers["x-session-token"];
+  const authHeader = req.headers.authorization;
+  const bearerToken = authHeader && authHeader.startsWith("Bearer ")
+    ? authHeader.slice(7).trim()
+    : null;
 
-  if (!token) {
+  // Prefer JWT bearer token
+  if (bearerToken) {
+    try {
+      const payload = jwt.verify(bearerToken, CONFIG.JWT_SECRET);
+      const user = await User.findById(payload.sub)
+        .populate("customerId")
+        .populate("agentId");
+      if (!user) {
+        return res.status(403).json({ error: "Session invalid." });
+      }
+      req.user = user;
+      return next();
+    } catch (err) {
+      return res.status(401).json({ error: "Invalid or expired token." });
+    }
+  }
+
+  // Legacy session token fallback
+  const legacyToken = req.headers["x-session-token"];
+  if (!legacyToken) {
     return res.status(401).json({ error: "Authentication required." });
   }
 
-  const user = await User.findOne({ sessionToken: token })
+  const user = await User.findOne({ sessionToken: legacyToken })
     .populate("customerId")
     .populate("agentId");
 

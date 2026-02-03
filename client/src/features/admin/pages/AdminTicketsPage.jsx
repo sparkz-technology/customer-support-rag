@@ -73,6 +73,7 @@ const SLA_OPTIONS = [
 export default function AdminTicketsPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const filterButtonStyle = { height: 24, padding: '0 8px' };
   
   // Filter state
   const [filters, setFilters] = useState({
@@ -83,6 +84,17 @@ export default function AdminTicketsPage() {
     search: '',
     dateRange: null,
   });
+  const handleResetFilters = () => {
+    setFilters({
+      status: '',
+      category: '',
+      priority: '',
+      sla: '',
+      search: '',
+      dateRange: null,
+    });
+    setPagination((prev) => ({ ...prev, current: 1 }));
+  };
   
   // Selection state for bulk operations
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
@@ -399,7 +411,7 @@ export default function AdminTicketsPage() {
 
       {/* Filters */}
       <Card size="small" styles={{ body: { padding: 12 } }} style={{ flexShrink: 0 }}>
-        <Space wrap size={8}>
+        <Space wrap size={8} className="filter-bar">
           <Input
             placeholder="Search subject/email..."
             prefix={<SearchOutlined />}
@@ -440,16 +452,19 @@ export default function AdminTicketsPage() {
           <RangePicker
             size="small"
             style={{ width: 220 }}
+            value={filters.dateRange}
             onChange={(dates) => setFilters({ ...filters, dateRange: dates })}
             placeholder={['Start Date', 'End Date']}
           />
           <Button 
             icon={<ReloadOutlined />} 
             size="small" 
+            style={filterButtonStyle}
             onClick={() => refetch()}
           >
             Refresh
           </Button>
+          <Button size="small" onClick={handleResetFilters} style={filterButtonStyle}>Reset</Button>
         </Space>
       </Card>
 
@@ -481,7 +496,7 @@ export default function AdminTicketsPage() {
           rowSelection={rowSelection}
           scroll={{ y: 'calc(100vh - 420px)' }}
           onRow={(record) => ({
-            onClick: () => navigate(`/agent/tickets/${record.id}`),
+            onClick: () => navigate(`/admin/tickets/${record.id}`),
             style: { cursor: 'pointer' },
           })}
           pagination={{

@@ -8,13 +8,48 @@ import {
 
 const API_BASE = '/api';
 
+let refreshPromise = null;
+
 // Re-export ApiError for backward compatibility
 export { ApiError };
+
+const refreshSession = async () => {
+  const refreshToken = useAuthStore.getState().refreshToken;
+  if (!refreshToken) {
+    throw new ApiError('Session expired', 401, 'No refresh token', null, null);
+  }
+
+  if (!refreshPromise) {
+    refreshPromise = fetch(API_BASE + '/auth/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new ApiError(
+            getErrorMessage(data.error, res.status),
+            res.status,
+            data.error || null,
+            null,
+            null
+          );
+        }
+        return data;
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+
+  return refreshPromise;
+};
 
 export const apiClient = async (method, path, body = null) => {
   const token = useAuthStore.getState().token;
   const headers = { 'Content-Type': 'application/json' };
-  if (token) headers['x-session-token'] = token;
+  if (token) headers['Authorization'] = `Bearer ${token}`;
 
   let res;
   try {
@@ -32,8 +67,29 @@ export const apiClient = async (method, path, body = null) => {
   const data = await res.json().catch(() => ({}));
   
   if (!res.ok) {
-    if (res.status === 401 || res.status === 403) {
-      useAuthStore.getState().logout();
+    if ((res.status === 401 || res.status === 403) && !path.startsWith('/auth/refresh') && !path.startsWith('/auth/send-otp') && !path.startsWith('/auth/verify-otp')) {
+      try {
+        const refreshed = await refreshSession();
+        if (refreshed?.accessToken && refreshed?.refreshToken && refreshed?.user) {
+          useAuthStore.getState().login(refreshed.accessToken, refreshed.refreshToken, refreshed.user);
+        }
+
+        const retryToken = useAuthStore.getState().token;
+        const retryHeaders = { 'Content-Type': 'application/json' };
+        if (retryToken) retryHeaders['Authorization'] = `Bearer ${retryToken}`;
+
+        const retryRes = await fetch(API_BASE + path, {
+          method,
+          headers: retryHeaders,
+          body: body ? JSON.stringify(body) : null,
+        });
+        const retryData = await retryRes.json().catch(() => ({}));
+        if (retryRes.ok) {
+          return retryData;
+        }
+      } catch (refreshError) {
+        useAuthStore.getState().logout();
+      }
     }
     
     // Parse validation errors if present
@@ -63,7 +119,9 @@ export const apiClient = async (method, path, body = null) => {
 export const authApi = {
   sendOtp: (email) => apiClient('POST', '/auth/send-otp', { email }),
   verifyOtp: (email, otp) => apiClient('POST', '/auth/verify-otp', { email, otp }),
+  refresh: (refreshToken) => apiClient('POST', '/auth/refresh', { refreshToken }),
   getMe: () => apiClient('GET', '/auth/me'),
+  logout: () => apiClient('POST', '/auth/logout'),
 };
 
 // Tickets API (for users)

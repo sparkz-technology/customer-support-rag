@@ -1,11 +1,11 @@
 import "dotenv/config";
 
 const BASE_URL = `http://localhost:${process.env.PORT || 3000}`;
-let sessionToken = null;
+let accessToken = null;
 
 async function request(method, path, body = null) {
   const headers = { "Content-Type": "application/json" };
-  if (sessionToken) headers["x-session-token"] = sessionToken;
+  if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
   
   const res = await fetch(BASE_URL + path, {
     method,
@@ -31,8 +31,8 @@ async function runFeatureTests() {
   console.log("-".repeat(40));
   await request("POST", "/api/auth/send-otp", { email: "alice@example.com" });
   const auth = await request("POST", "/api/auth/verify-otp", { email: "alice@example.com", otp: "123456" });
-  sessionToken = auth.sessionToken;
-  console.log("  Login:", sessionToken ? "✓" : "✗");
+  accessToken = auth.accessToken;
+  console.log("  Login:", accessToken ? "✓" : "✗");
 
   // 1. Create ticket with auto-assignment
   console.log("\n🎫 TICKET SYSTEM (Auto-Assignment)");

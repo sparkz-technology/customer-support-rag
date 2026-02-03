@@ -2,11 +2,11 @@ import "dotenv/config";
 import fs from "fs";
 
 const BASE_URL = `http://localhost:${process.env.PORT || 3000}`;
-let sessionToken = null;
+let accessToken = null;
 
 async function request(method, path, body = null) {
   const headers = { "Content-Type": "application/json" };
-  if (sessionToken) headers["x-session-token"] = sessionToken;
+  if (accessToken) headers["Authorization"] = `Bearer ${accessToken}`;
   
   const res = await fetch(BASE_URL + path, {
     method,
@@ -31,7 +31,7 @@ async function uploadFile(path, filePath, category, topic) {
 
   const res = await fetch(BASE_URL + path, {
     method: "POST",
-    headers: { "x-session-token": sessionToken },
+    headers: accessToken ? { "Authorization": `Bearer ${accessToken}` } : {},
     body: formData
   });
   return res.json();
@@ -50,8 +50,8 @@ async function runFullTest() {
   console.log("  Send OTP:", otpRes.success ? "✓" : "✗", otpRes.message || otpRes.error);
   
   const authRes = await request("POST", "/api/auth/verify-otp", { email: "alice@example.com", otp: "123456" });
-  sessionToken = authRes.sessionToken;
-  console.log("  Verify OTP:", sessionToken ? "✓ Token received" : "✗ Failed");
+  accessToken = authRes.accessToken;
+  console.log("  Verify OTP:", accessToken ? "✓ Token received" : "✗ Failed");
 
   // 2. Knowledge Base - Upload File
   console.log("\n📚 KNOWLEDGE BASE");
@@ -118,7 +118,7 @@ async function runFullTest() {
   // Login as premium customer
   await request("POST", "/api/auth/send-otp", { email: "bob@example.com" });
   const bobAuth = await request("POST", "/api/auth/verify-otp", { email: "bob@example.com", otp: "123456" });
-  sessionToken = bobAuth.sessionToken;
+  accessToken = bobAuth.accessToken;
   
   const premiumRes = await request("POST", "/api/triage", { 
     description: "What features do I get with my current plan?" 

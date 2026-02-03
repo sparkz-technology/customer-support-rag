@@ -14,4 +14,8 @@ export const CONFIG = {
   PINECONE_INDEX: process.env.PINECONE_INDEX || "auto-triager",
   PINECONE_NAMESPACE: process.env.PINECONE_NAMESPACE || "support-docs",
   WEBHOOK_URL: process.env.WEBHOOK_URL,
+  JWT_SECRET: process.env.JWT_SECRET || "dev_jwt_secret_change_me",
+  JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET || "dev_refresh_secret_change_me",
+  JWT_ACCESS_TTL: process.env.JWT_ACCESS_TTL || "15m",
+  JWT_REFRESH_TTL: process.env.JWT_REFRESH_TTL || "30d",
 };
