@@ -1,6 +1,6 @@
 import { Ticket } from "../../models/index.js";
 import { runAgent } from "../agent.js";
-import { autoAssignTicket, detectCategory, releaseAgentLoad } from "./ticket-assignment.js";
+import { autoAssignTicket, detectCategory, releaseAgentLoad, incrementAgentLoad } from "./ticket-assignment.js";
 import { sendTicketCreatedEmail, sendTicketUpdatedEmail } from "../auth/email.js";
 import { notifyWithRetry } from "../webhooks.js";
 import { auditLogger } from "../admin/audit-log.js";
@@ -131,23 +131,33 @@ export const getUserTickets = async ({ email, status, category, page = 1, limit 
     Ticket.countDocuments(query),
   ]);
 
+  const now = new Date();
+
   return {
     success: true,
-    tickets: tickets.map(t => ({
-      id: t._id,
-      subject: t.subject,
-      category: t.category,
-      status: t.status,
-      priority: t.priority,
-      assignedTo: t.assignedTo?.name || "Unassigned",
-      createdAt: t.createdAt,
-      updatedAt: t.updatedAt,
-      messageCount: t.conversation?.length || 0,
-      slaBreached: t.slaBreached,
-      slaDueAt: t.slaDueAt,
-      firstResponseAt: t.firstResponseAt,
-      reopenCount: t.reopenCount || 0,
-    })),
+    tickets: tickets.map(t => {
+      const isTerminal = t.status === "resolved" || t.status === "closed";
+      const computedBreached = t.slaDueAt && !isTerminal && new Date(t.slaDueAt) < now;
+      const slaBreached = t.slaBreached || computedBreached;
+
+      return {
+        id: t._id,
+        subject: t.subject,
+        category: t.category,
+        status: t.status,
+        priority: t.priority,
+        assignedTo: t.assignedTo?.name || "Unassigned",
+        createdAt: t.createdAt,
+        updatedAt: t.updatedAt,
+        messageCount: t.conversation?.length || 0,
+        slaBreached,
+        slaDueAt: t.slaDueAt,
+        firstResponseAt: t.firstResponseAt,
+        needsManualReview: t.needsManualReview || false,
+        reopenCount: t.reopenCount || 0,
+        reopenedAt: t.reopenedAt || null,
+      };
+    }),
     pagination: { 
       page: pageNum, 
       limit: limitNum, 
@@ -165,10 +175,9 @@ export const getTicketById = async (ticketId, customerEmail) => {
 
   if (!ticket) return null;
 
-  const slaBreached = ticket.slaDueAt && 
-    ticket.status !== "resolved" && 
-    ticket.status !== "closed" && 
-    new Date(ticket.slaDueAt) < new Date();
+  const isTerminal = ticket.status === "resolved" || ticket.status === "closed";
+  const computedBreached = ticket.slaDueAt && !isTerminal && new Date(ticket.slaDueAt) < new Date();
+  const slaBreached = ticket.slaBreached || computedBreached;
 
   return {
     success: true,
@@ -182,6 +191,11 @@ export const getTicketById = async (ticketId, customerEmail) => {
       assignedTo: ticket.assignedTo?.name || "Unassigned",
       slaDueAt: ticket.slaDueAt,
       slaBreached,
+      needsManualReview: ticket.needsManualReview || false,
+      reopenCount: ticket.reopenCount || 0,
+      reopenedAt: ticket.reopenedAt || null,
+      firstResponseAt: ticket.firstResponseAt || null,
+      resolvedAt: ticket.resolvedAt || null,
       createdAt: ticket.createdAt,
       updatedAt: ticket.updatedAt,
       conversation: ticket.conversation || [],
@@ -217,6 +231,10 @@ export const addMessage = async ({ ticketId, message, user }, req) => {
   // Reopen ticket if it was resolved
   if (ticket.status === "resolved") {
     await reopenTicket(ticket);
+
+    if (ticket.assignedTo) {
+      await incrementAgentLoad(ticket.assignedTo);
+    }
     
     // Add system message about reopening
     ticket.conversation.push({
@@ -271,11 +289,7 @@ export const addMessage = async ({ ticketId, message, user }, req) => {
       content: "AI response unavailable. This ticket has been marked for manual review by a support agent.",
       timestamp: new Date(),
     });
-    
-    if (!ticket.firstResponseAt) {
-      ticket.firstResponseAt = new Date();
-    }
-    
+
     ticket.status = "in-progress";
     await ticket.save();
 
@@ -305,12 +319,29 @@ export const updateTicketStatus = async ({ ticketId, status, user }, req) => {
   }
 
   const previousStatus = ticket.status;
+  if (previousStatus === status) {
+    return { 
+      success: true, 
+      ticket: {
+        id: ticket._id,
+        status: ticket.status,
+        previousStatus,
+        resolvedAt: ticket.resolvedAt,
+      },
+    };
+  }
+
   ticket.status = status;
+  const wasTerminal = previousStatus === "resolved" || previousStatus === "closed";
+  const isTerminal = status === "resolved" || status === "closed";
   
   // Set resolvedAt timestamp only when ticket is resolved or closed
-  if (status === "resolved" || status === "closed") {
+  if (!wasTerminal && isTerminal) {
     ticket.resolvedAt = new Date();
     await releaseAgentLoad(ticket);
+    if (ticket.needsManualReview) {
+      ticket.needsManualReview = false;
+    }
   }
 
   ticket.conversation.push({

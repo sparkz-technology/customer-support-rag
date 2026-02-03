@@ -4,19 +4,23 @@ import { notifyWithRetry } from "../webhooks.js";
 import { sendTicketUpdatedEmail } from "../auth/email.js";
 import { auditLogger } from "../admin/audit-log.js";
 import { releaseAgentLoad, manualReassign, incrementAgentLoad } from "../ticket/ticket-assignment.js";
+import { reopenTicket } from "../ticket/ticket.service.js";
 import { sanitizeString } from "../validator.js";
 
 const SLA_HOURS = { low: 72, medium: 48, high: 24, urgent: 8 };
 const VALID_STATUSES = ["open", "in-progress", "resolved", "closed"];
 const VALID_CATEGORIES = ["account", "billing", "technical", "gameplay", "security", "general"];
+const VALID_PRIORITIES = ["low", "medium", "high", "urgent"];
 
-export const getTickets = async ({ status, category, assignedToMe, agentId, page = 1, limit = 20 }) => {
+export const getTickets = async ({ status, category, priority, needsManualReview, assignedToMe, agentId, page = 1, limit = 20 }) => {
   const pageNum = Math.max(1, parseInt(page) || 1);
   const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 20));
   
   const query = {};
   if (status && VALID_STATUSES.includes(status)) query.status = status;
   if (category && VALID_CATEGORIES.includes(category)) query.category = category;
+  if (priority && VALID_PRIORITIES.includes(priority)) query.priority = priority;
+  if (needsManualReview === true) query.needsManualReview = true;
   if (assignedToMe && agentId) query.assignedTo = agentId;
 
   const [tickets, total] = await Promise.all([
@@ -29,24 +33,36 @@ export const getTickets = async ({ status, category, assignedToMe, agentId, page
     Ticket.countDocuments(query),
   ]);
 
+  const now = new Date();
+
   return {
     success: true,
-    tickets: tickets.map(t => ({
-      id: t._id,
-      subject: t.subject,
-      description: t.description?.slice(0, 100),
-      customerEmail: t.customerEmail,
-      category: t.category,
-      status: t.status,
-      priority: t.priority,
-      assignedTo: t.assignedTo?.name || "Unassigned",
-      assignedToId: t.assignedTo?._id,
-      createdAt: t.createdAt,
-      updatedAt: t.updatedAt,
-      messageCount: t.conversation?.length || 0,
-      slaBreached: t.slaBreached,
-      slaDueAt: t.slaDueAt,
-    })),
+    tickets: tickets.map(t => {
+      const isTerminal = t.status === "resolved" || t.status === "closed";
+      const computedBreached = t.slaDueAt && !isTerminal && new Date(t.slaDueAt) < now;
+      const slaBreached = t.slaBreached || computedBreached;
+
+      return {
+        id: t._id,
+        subject: t.subject,
+        description: t.description?.slice(0, 100),
+        customerEmail: t.customerEmail,
+        category: t.category,
+        status: t.status,
+        priority: t.priority,
+        assignedTo: t.assignedTo?.name || "Unassigned",
+        assignedToId: t.assignedTo?._id,
+        createdAt: t.createdAt,
+        updatedAt: t.updatedAt,
+        messageCount: t.conversation?.length || 0,
+        slaBreached,
+        slaDueAt: t.slaDueAt,
+        firstResponseAt: t.firstResponseAt || null,
+        needsManualReview: t.needsManualReview || false,
+        reopenCount: t.reopenCount || 0,
+        reopenedAt: t.reopenedAt || null,
+      };
+    }),
     pagination: { page: pageNum, limit: limitNum, total, pages: Math.ceil(total / limitNum) },
   };
 };
@@ -57,6 +73,10 @@ export const getTicketById = async (ticketId) => {
     .lean();
 
   if (!ticket) return null;
+
+  const isTerminal = ticket.status === "resolved" || ticket.status === "closed";
+  const computedBreached = ticket.slaDueAt && !isTerminal && new Date(ticket.slaDueAt) < new Date();
+  const slaBreached = ticket.slaBreached || computedBreached;
 
   return {
     success: true,
@@ -71,9 +91,12 @@ export const getTicketById = async (ticketId) => {
       assignedTo: ticket.assignedTo?.name || "Unassigned",
       assignedToId: ticket.assignedTo?._id,
       slaDueAt: ticket.slaDueAt,
-      slaBreached: ticket.slaBreached,
+      slaBreached,
       firstResponseAt: ticket.firstResponseAt,
       resolvedAt: ticket.resolvedAt,
+      needsManualReview: ticket.needsManualReview || false,
+      reopenCount: ticket.reopenCount || 0,
+      reopenedAt: ticket.reopenedAt || null,
       createdAt: ticket.createdAt,
       updatedAt: ticket.updatedAt,
       conversation: ticket.conversation || [],
@@ -93,6 +116,18 @@ export const replyToTicket = async ({ ticketId, message, useAI, agentEmail }, re
 
   let responseContent = message ? sanitizeString(message) : "";
 
+  if (ticket.status === "resolved") {
+    await reopenTicket(ticket);
+    if (ticket.assignedTo) {
+      await incrementAgentLoad(ticket.assignedTo);
+    }
+    ticket.conversation.push({
+      role: "system",
+      content: "Ticket reopened due to agent reply",
+      timestamp: new Date(),
+    });
+  }
+
   if (useAI) {
     const lastCustomerMsg = [...ticket.conversation].reverse().find(m => m.role === "customer");
     responseContent = await runAgent(
@@ -108,6 +143,10 @@ export const replyToTicket = async ({ ticketId, message, useAI, agentEmail }, re
     timestamp: new Date(),
     agentEmail,
   });
+
+  if (ticket.needsManualReview) {
+    ticket.needsManualReview = false;
+  }
 
   if (!ticket.firstResponseAt) {
     ticket.firstResponseAt = new Date();
@@ -136,16 +175,32 @@ export const updateTicket = async ({ ticketId, status, priority, category, assig
   }
 
   const changes = [];
+  const previousStatus = ticket.status;
+  const wasTerminal = previousStatus === "resolved" || previousStatus === "closed";
 
-  if (status) {
+  if (status && status !== ticket.status) {
     changes.push(`Status: ${ticket.status} → ${status}`);
+
+    const isTerminal = status === "resolved" || status === "closed";
+
+    // If transitioning from terminal to active, treat as reopen
+    if (wasTerminal && !isTerminal) {
+      await reopenTicket(ticket);
+      if (ticket.assignedTo) {
+        await incrementAgentLoad(ticket.assignedTo);
+      }
+    }
+
     ticket.status = status;
-    if (status === "resolved" || status === "closed") {
+    if (!wasTerminal && isTerminal) {
       ticket.resolvedAt = new Date();
+      if (ticket.needsManualReview) {
+        ticket.needsManualReview = false;
+      }
     }
   }
 
-  if (priority) {
+  if (priority && priority !== ticket.priority) {
     changes.push(`Priority: ${ticket.priority} → ${priority}`);
     const oldPriority = ticket.priority;
     const oldSlaDueAt = ticket.slaDueAt;
@@ -179,12 +234,17 @@ export const updateTicket = async ({ ticketId, status, priority, category, assig
     }
   }
 
-  if (category) {
+  if (category && category !== ticket.category) {
     changes.push(`Category: ${ticket.category} → ${category}`);
     ticket.category = category;
   }
 
-  if (assignedTo) {
+  if (assignedTo && (!ticket.assignedTo || ticket.assignedTo.toString() !== assignedTo.toString())) {
+    const isTerminal = ticket.status === "resolved" || ticket.status === "closed";
+    if (isTerminal) {
+      throw new Error("Cannot reassign a resolved or closed ticket");
+    }
+
     const agent = await Agent.findById(assignedTo);
     if (!agent) {
       throw new Error("Agent not found");
@@ -237,7 +297,8 @@ export const updateTicket = async ({ ticketId, status, priority, category, assig
     timestamp: new Date(),
   });
 
-  if ((status === "resolved" || status === "closed") && ticket.assignedTo) {
+  const isNowTerminal = ticket.status === "resolved" || ticket.status === "closed";
+  if (!wasTerminal && isNowTerminal && ticket.assignedTo) {
     await releaseAgentLoad(ticket);
   }
 

@@ -8,6 +8,7 @@ const VALID_CATEGORIES = ["account", "billing", "technical", "gameplay", "securi
 const VALID_PRIORITIES = ["low", "medium", "high", "urgent"];
 
 export const getSystemStats = async () => {
+  const now = new Date();
   const [
     totalTickets, openTickets, resolvedTickets, breachedTickets,
     totalUsers, totalAgents, activeAgents,
@@ -15,7 +16,7 @@ export const getSystemStats = async () => {
     Ticket.countDocuments(),
     Ticket.countDocuments({ status: { $in: ["open", "in-progress"] } }),
     Ticket.countDocuments({ status: "resolved" }),
-    Ticket.countDocuments({ slaBreached: true }),
+    Ticket.countDocuments({ status: { $nin: ["resolved", "closed"] }, slaDueAt: { $lt: now } }),
     User.countDocuments({ role: "user" }),
     Agent.countDocuments(),
     Agent.countDocuments({ isActive: true }),
@@ -65,20 +66,31 @@ export const getAllTickets = async ({ status, category, priority, page = 1, limi
     Ticket.countDocuments(query),
   ]);
 
+  const now = new Date();
+
   return {
     success: true,
-    tickets: tickets.map(t => ({
-      id: t._id,
-      subject: t.subject,
-      customerEmail: t.customerEmail,
-      category: t.category,
-      status: t.status,
-      priority: t.priority,
-      assignedTo: t.assignedTo?.name || "Unassigned",
-      slaBreached: t.slaBreached,
-      createdAt: t.createdAt,
-      resolvedAt: t.resolvedAt,
-    })),
+    tickets: tickets.map(t => {
+      const isTerminal = t.status === "resolved" || t.status === "closed";
+      const computedBreached = t.slaDueAt && !isTerminal && new Date(t.slaDueAt) < now;
+      const slaBreached = t.slaBreached || computedBreached;
+
+      return {
+        id: t._id,
+        subject: t.subject,
+        description: t.description,
+        customerEmail: t.customerEmail,
+        category: t.category,
+        status: t.status,
+        priority: t.priority,
+        assignedTo: t.assignedTo?.name || "Unassigned",
+        slaBreached,
+        slaDueAt: t.slaDueAt,
+        needsManualReview: t.needsManualReview || false,
+        createdAt: t.createdAt,
+        resolvedAt: t.resolvedAt,
+      };
+    }),
     pagination: { page: pageNum, limit: limitNum, total, pages: Math.ceil(total / limitNum) },
   };
 };

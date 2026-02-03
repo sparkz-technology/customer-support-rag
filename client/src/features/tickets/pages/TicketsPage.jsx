@@ -16,6 +16,8 @@ const CATEGORY_OPTIONS = [
   { value: 'billing', label: 'Billing' },
   { value: 'technical', label: 'Technical' },
   { value: 'account', label: 'Account' },
+  { value: 'gameplay', label: 'Gameplay' },
+  { value: 'security', label: 'Security' },
   { value: 'general', label: 'General' },
 ];
 

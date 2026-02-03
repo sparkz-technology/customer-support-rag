@@ -158,7 +158,7 @@ export const useReassignTicket = (ticketId) => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (agentId) => agentApi.updateTicket(ticketId, { assignedToId: agentId }),
+    mutationFn: (agentId) => agentApi.updateTicket(ticketId, { assignedTo: agentId }),
     onSuccess: (data) => {
       // Invalidate all ticket-related queries
       queryClient.invalidateQueries({ queryKey: queryKeys.ticket(ticketId) });

@@ -159,7 +159,7 @@ export default function AdminTicketsPage() {
 
   // Assignment mutation
   const assignMutation = useMutation({
-    mutationFn: ({ ticketId, agentId }) => agentApi.updateTicket(ticketId, { assignedToId: agentId }),
+    mutationFn: ({ ticketId, agentId }) => agentApi.updateTicket(ticketId, { assignedTo: agentId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-tickets'] });
       setAssignmentModal({ open: false, ticketId: null, ticketCategory: null });
@@ -314,6 +314,7 @@ export default function AdminTicketsPage() {
             type="link" 
             size="small" 
             style={{ fontSize: 10, padding: 0 }}
+            disabled={record.status === 'resolved' || record.status === 'closed'}
             onClick={(e) => {
               e.stopPropagation();
               setAssignmentModal({ 

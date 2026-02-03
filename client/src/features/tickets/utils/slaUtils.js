@@ -48,9 +48,9 @@ export const getSLAStatus = (slaDueAt, slaBreached) => {
   const now = new Date();
   const dueDate = new Date(slaDueAt);
   const diffMs = dueDate - now;
-  const twoHoursMs = 2 * 60 * 60 * 1000;
+  const fourHoursMs = 4 * 60 * 60 * 1000;
   
   if (diffMs <= 0) return 'breached';
-  if (diffMs <= twoHoursMs) return 'at-risk';
+  if (diffMs <= fourHoursMs) return 'at-risk';
   return 'on-track';
 };

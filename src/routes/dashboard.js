@@ -43,7 +43,20 @@ router.get("/metrics", requireAuth, async (req, res, next) => {
         $group: {
           _id: null,
           total: { $sum: 1 },
-          breached: { $sum: { $cond: ["$slaBreached", 1, 0] } },
+          breached: { 
+            $sum: { 
+              $cond: [
+                { $and: [
+                  { $ne: ["$status", "resolved"] },
+                  { $ne: ["$status", "closed"] },
+                  { $ne: ["$slaDueAt", null] },
+                  { $lt: ["$slaDueAt", now] },
+                ]},
+                1,
+                0,
+              ],
+            },
+          },
           atRisk: {
             $sum: {
               $cond: [
@@ -51,6 +64,8 @@ router.get("/metrics", requireAuth, async (req, res, next) => {
                   $and: [
                     { $ne: ["$status", "resolved"] },
                     { $ne: ["$status", "closed"] },
+                    { $ne: ["$slaDueAt", null] },
+                    { $gte: ["$slaDueAt", now] },
                     { $lt: ["$slaDueAt", new Date(now.getTime() + 4 * 60 * 60 * 1000)] }, // Due in 4 hours
                   ],
                 },
@@ -190,8 +205,8 @@ router.get("/sla-alerts", requireAuth, async (req, res, next) => {
     // Already breached
     const breached = await Ticket.find({
       ...userFilter,
-      slaBreached: true,
       status: { $nin: ["resolved", "closed"] },
+      slaDueAt: { $lt: now },
     })
       .populate("assignedTo", "name email")
       .sort({ slaDueAt: 1 })
@@ -200,7 +215,6 @@ router.get("/sla-alerts", requireAuth, async (req, res, next) => {
     // At risk (due within 4 hours)
     const atRisk = await Ticket.find({
       ...userFilter,
-      slaBreached: false,
       status: { $nin: ["resolved", "closed"] },
       slaDueAt: { $lte: fourHoursFromNow, $gt: now },
     })

@@ -7,10 +7,12 @@ const VALID_CATEGORIES = ["account", "billing", "technical", "gameplay", "securi
 
 export const getTickets = async (req, res, next) => {
   try {
-    const { status, category, assignedToMe, page = 1, limit = 20 } = req.query;
+    const { status, category, priority, needsManualReview, assignedToMe, page = 1, limit = 20 } = req.query;
     const result = await agentService.getTickets({
       status,
       category,
+      priority,
+      needsManualReview: needsManualReview === "true",
       assignedToMe: assignedToMe === "true",
       agentId: req.user.agentId,
       page,

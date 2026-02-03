@@ -23,6 +23,7 @@ export default function AgentTicketsPage() {
   const [filters, setFilters] = useState({
     status: searchParams.get('status') || '',
     category: searchParams.get('category') || '',
+    priority: searchParams.get('priority') || '',
     assignedToMe: searchParams.get('assignedToMe') === 'true',
     needsManualReview: searchParams.get('needsManualReview') === 'true',
   });
@@ -227,6 +228,20 @@ export default function AgentTicketsPage() {
               { value: 'technical', label: 'Technical' },
               { value: 'gameplay', label: 'Gameplay' },
               { value: 'security', label: 'Security' },
+              { value: 'general', label: 'General' },
+            ]}
+          />
+          <Select
+            value={filters.priority || 'all'}
+            onChange={(v) => setFilters({ ...filters, priority: v === 'all' ? '' : v })}
+            style={{ width: 120 }}
+            size="small"
+            options={[
+              { value: 'all', label: 'All Priorities' },
+              { value: 'urgent', label: 'Urgent' },
+              { value: 'high', label: 'High' },
+              { value: 'medium', label: 'Medium' },
+              { value: 'low', label: 'Low' },
             ]}
           />
           <Space size={4}>

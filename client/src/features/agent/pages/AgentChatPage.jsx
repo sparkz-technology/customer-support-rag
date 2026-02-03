@@ -8,6 +8,7 @@ import {
   WarningOutlined, ThunderboltOutlined, SettingOutlined, SwapOutlined, SyncOutlined,
 } from '@ant-design/icons';
 import { SLADisplay, ManualReviewBadge, ReopenBadge, AgentSelect } from '../../tickets/components';
+import { getSLAStatus } from '../../tickets/utils/slaUtils';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -66,6 +67,7 @@ export default function AgentChatPage() {
   };
 
   const status = statusConfig[ticket.status] || statusConfig.open;
+  const slaStatus = ticket.slaDueAt ? getSLAStatus(ticket.slaDueAt, ticket.slaBreached) : null;
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#1a1a1a' }}>
@@ -117,7 +119,7 @@ export default function AgentChatPage() {
                   currentAgentId={ticket.assignedToId}
                   ticketCategory={ticket.category}
                   onSelect={(agentId) => reassignMutation.mutate(agentId)}
-                  disabled={reassignMutation.isPending}
+                  disabled={reassignMutation.isPending || ticket.status === 'resolved' || ticket.status === 'closed'}
                   placeholder="Select agent to reassign"
                 />
               </div>
@@ -147,9 +149,9 @@ export default function AgentChatPage() {
       />
 
       {/* SLA Alert - Show for breached or at-risk */}
-      {ticket.status !== 'resolved' && ticket.status !== 'closed' && (
+      {ticket.status !== 'resolved' && ticket.status !== 'closed' && ticket.slaDueAt && (
         <>
-          {ticket.slaBreached && (
+          {slaStatus === 'breached' && (
             <Alert
               description={<span style={{ fontSize: 12 }}>SLA BREACHED - Due: {new Date(ticket.slaDueAt).toLocaleString()}</span>}
               type="error"
@@ -158,13 +160,7 @@ export default function AgentChatPage() {
               style={{ margin: '0 16px', padding: '6px 12px' }}
             />
           )}
-          {!ticket.slaBreached && ticket.slaDueAt && (() => {
-            const now = new Date();
-            const dueDate = new Date(ticket.slaDueAt);
-            const diffMs = dueDate - now;
-            const twoHoursMs = 2 * 60 * 60 * 1000;
-            return diffMs > 0 && diffMs <= twoHoursMs;
-          })() && (
+          {slaStatus === 'at-risk' && (
             <Alert
               description={<span style={{ fontSize: 12 }}>SLA AT RISK - Due: {new Date(ticket.slaDueAt).toLocaleString()}</span>}
               type="warning"
