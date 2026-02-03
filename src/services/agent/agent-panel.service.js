@@ -168,10 +168,16 @@ export const replyToTicket = async ({ ticketId, message, useAI, agentEmail }, re
   };
 };
 
-export const updateTicket = async ({ ticketId, status, priority, category, assignedTo, agentEmail }, user, req) => {
+export const updateTicket = async ({ ticketId, status, priority, category, assignedTo, remark, agentEmail }, user, req) => {
   const ticket = await Ticket.findById(ticketId);
   if (!ticket) {
     throw new Error("Ticket not found");
+  }
+
+  const isAgent = user?.role === "agent";
+  const remarkText = typeof remark === "string" ? remark.trim() : "";
+  if (remarkText && remarkText.length > 500) {
+    throw new Error("Remark must be 500 characters or less");
   }
 
   const changes = [];
@@ -291,9 +297,17 @@ export const updateTicket = async ({ ticketId, status, priority, category, assig
     throw new Error("No valid changes provided");
   }
 
+  if (isAgent && !remarkText) {
+    throw new Error("Remark is required for ticket updates");
+  }
+
+  const sanitizedRemark = remarkText ? sanitizeString(remarkText) : "";
+  const actorLabel = user?.role === "admin" ? "Admin" : "Agent";
+  const actorName = user?.name || agentEmail || user?.email || "Unknown";
+
   ticket.conversation.push({
     role: "system",
-    content: `Agent ${agentEmail} updated: ${changes.join(", ")}`,
+    content: `${actorLabel} ${actorName} updated: ${changes.join(", ")}${sanitizedRemark ? `\nRemark: ${sanitizedRemark}` : ""}`,
     timestamp: new Date(),
   });
 

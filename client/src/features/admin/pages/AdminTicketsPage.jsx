@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { adminApi } from '../api/adminApi';
 import { agentApi } from '../../agent/api/agentApi';
-import { 
+import {
   Card, Table, Tag, Select, Space, Typography, Input, Button, 
   Dropdown, DatePicker, Statistic, Row, Col, Modal, message, Tooltip 
 } from 'antd';
@@ -100,7 +100,9 @@ export default function AdminTicketsPage() {
   const [selectedRowKeys, setSelectedRowKeys] = useState([]);
   
   // Assignment modal state
-  const [assignmentModal, setAssignmentModal] = useState({ open: false, ticketId: null, ticketCategory: null });
+  const [assignmentModal, setAssignmentModal] = useState({ open: false, ticketId: null, ticketCategory: null, agentId: null, remark: '' });
+  const [bulkRemarkModal, setBulkRemarkModal] = useState({ open: false, status: null });
+  const [bulkRemark, setBulkRemark] = useState('');
 
   // Pagination state
   const [pagination, setPagination] = useState({ current: 1, pageSize: 20 });
@@ -171,10 +173,10 @@ export default function AdminTicketsPage() {
 
   // Assignment mutation
   const assignMutation = useMutation({
-    mutationFn: ({ ticketId, agentId }) => agentApi.updateTicket(ticketId, { assignedTo: agentId }),
+    mutationFn: ({ ticketId, agentId, remark }) => agentApi.updateTicket(ticketId, { assignedTo: agentId, remark }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-tickets'] });
-      setAssignmentModal({ open: false, ticketId: null, ticketCategory: null });
+      setAssignmentModal({ open: false, ticketId: null, ticketCategory: null, agentId: null, remark: '' });
       message.success('Agent assigned successfully');
     },
     onError: (err) => {
@@ -231,7 +233,19 @@ export default function AdminTicketsPage() {
       message.warning('Please select tickets first');
       return;
     }
-    bulkUpdateMutation.mutate({ ticketIds: selectedRowKeys, updates: { status: newStatus } });
+    setBulkRemark('');
+    setBulkRemarkModal({ open: true, status: newStatus });
+  };
+
+  const submitBulkUpdate = () => {
+    if (!bulkRemarkModal.status) return;
+    const trimmed = bulkRemark.trim();
+    bulkUpdateMutation.mutate({
+      ticketIds: selectedRowKeys,
+      updates: { status: bulkRemarkModal.status, ...(trimmed ? { remark: trimmed } : {}) },
+    });
+    setBulkRemarkModal({ open: false, status: null });
+    setBulkRemark('');
   };
 
   // Bulk action menu items
@@ -332,7 +346,9 @@ export default function AdminTicketsPage() {
               setAssignmentModal({ 
                 open: true, 
                 ticketId: record.id, 
-                ticketCategory: record.category 
+                ticketCategory: record.category,
+                agentId: null,
+                remark: '',
               });
             }}
           >
@@ -514,7 +530,7 @@ export default function AdminTicketsPage() {
       <Modal
         title="Assign Agent"
         open={assignmentModal.open}
-        onCancel={() => setAssignmentModal({ open: false, ticketId: null, ticketCategory: null })}
+        onCancel={() => setAssignmentModal({ open: false, ticketId: null, ticketCategory: null, agentId: null, remark: '' })}
         footer={null}
         width={400}
       >
@@ -523,21 +539,66 @@ export default function AdminTicketsPage() {
             Select an agent to assign this ticket:
           </Text>
           <AgentSelect
+            currentAgentId={assignmentModal.agentId}
             ticketCategory={assignmentModal.ticketCategory}
-            onSelect={(agentId) => {
-              assignMutation.mutate({ 
-                ticketId: assignmentModal.ticketId, 
-                agentId 
-              });
-            }}
+            onSelect={(agentId) => setAssignmentModal((prev) => ({ ...prev, agentId }))}
             placeholder="Select agent..."
           />
+          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 12 }}>
+            Remark (optional)
+          </Text>
+          <Input.TextArea
+            rows={3}
+            maxLength={500}
+            value={assignmentModal.remark}
+            onChange={(e) => setAssignmentModal((prev) => ({ ...prev, remark: e.target.value }))}
+            placeholder="Add a note visible to the user and admins"
+            style={{ marginTop: 6 }}
+          />
+          <Button
+            type="primary"
+            size="small"
+            style={{ marginTop: 12 }}
+            disabled={!assignmentModal.agentId}
+            loading={assignMutation.isPending}
+            onClick={() => {
+              if (!assignmentModal.agentId) return;
+              assignMutation.mutate({
+                ticketId: assignmentModal.ticketId,
+                agentId: assignmentModal.agentId,
+                remark: assignmentModal.remark?.trim() || undefined,
+              });
+            }}
+          >
+            Assign Agent
+          </Button>
           {assignMutation.isPending && (
             <Text type="secondary" style={{ fontSize: 11, marginTop: 8, display: 'block' }}>
               Assigning agent...
             </Text>
           )}
         </div>
+      </Modal>
+
+      <Modal
+        title="Bulk Update Remark"
+        open={bulkRemarkModal.open}
+        onCancel={() => setBulkRemarkModal({ open: false, status: null })}
+        onOk={submitBulkUpdate}
+        okText="Update"
+        cancelText="Cancel"
+        okButtonProps={{ loading: bulkUpdateMutation.isPending }}
+      >
+        <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
+          Remark is optional and will be visible to users and admins.
+        </Text>
+        <Input.TextArea
+          rows={3}
+          maxLength={500}
+          value={bulkRemark}
+          onChange={(e) => setBulkRemark(e.target.value)}
+          placeholder="Add a remark (optional)"
+        />
       </Modal>
     </div>
   );

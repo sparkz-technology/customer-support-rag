@@ -87,7 +87,7 @@ export const replyToTicket = async (req, res, next) => {
 export const updateTicket = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { status, priority, category, assignedTo } = req.body;
+    const { status, priority, category, assignedTo, remark } = req.body;
 
     if (!isValidObjectId(id)) {
       return res.status(400).json({ error: "Invalid ticket ID" });
@@ -113,6 +113,7 @@ export const updateTicket = async (req, res, next) => {
       priority,
       category,
       assignedTo,
+      remark,
       agentEmail: req.user.email,
     }, req.user, req);
 

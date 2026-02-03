@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAgentTicket, useAgentReply, useAgentUpdateTicket, useReassignTicket } from '../api/useAgent';
-import { Input, Button, Tag, Typography, Spin, Empty, Space, Select, Avatar, Alert, Collapse, Divider, Tooltip } from 'antd';
+import { Input, Button, Tag, Typography, Spin, Empty, Space, Select, Avatar, Alert, Collapse, Divider, Tooltip, Modal, message } from 'antd';
 import {
   ArrowLeftOutlined, SendOutlined, ClockCircleOutlined, CheckCircleOutlined,
   ExclamationCircleOutlined, UserOutlined, RobotOutlined, ReloadOutlined,
@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons';
 import { SLADisplay, ManualReviewBadge, ReopenBadge, AgentSelect } from '../../tickets/components';
 import { getSLAStatus } from '../../tickets/utils/slaUtils';
+import { useAuthStore } from '../../../store/authStore';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -18,6 +19,11 @@ export default function AgentChatPage({ backPath = '/agent/tickets' }) {
   const navigate = useNavigate();
   const [message, setMessage] = useState('');
   const messagesEndRef = useRef(null);
+  const [remarkModal, setRemarkModal] = useState({ open: false, action: null, payload: null, title: '' });
+  const [remarkText, setRemarkText] = useState('');
+  const currentUser = useAuthStore((s) => s.user);
+  const isAdminUser = currentUser?.role === 'admin';
+  const isAgentUser = currentUser?.role === 'agent';
 
   const { data, isLoading, refetch, isFetching } = useAgentTicket(id);
   const replyMutation = useAgentReply(id);
@@ -39,6 +45,33 @@ export default function AgentChatPage({ backPath = '/agent/tickets' }) {
 
   const handleAIReply = () => {
     replyMutation.mutate({ message: '', useAI: true });
+  };
+
+  const openRemarkModal = (action, payload, title) => {
+    setRemarkText('');
+    setRemarkModal({ open: true, action, payload, title });
+  };
+
+  const closeRemarkModal = () => {
+    setRemarkModal({ open: false, action: null, payload: null, title: '' });
+    setRemarkText('');
+  };
+
+  const submitRemark = () => {
+    const trimmed = remarkText.trim();
+    if (isAgentUser && !trimmed) {
+      message.error('Remark is required for ticket updates');
+      return;
+    }
+
+    const remarkPayload = trimmed ? { remark: trimmed } : {};
+    if (remarkModal.action === 'reassign') {
+      reassignMutation.mutate({ agentId: remarkModal.payload.agentId, ...remarkPayload });
+    } else {
+      updateMutation.mutate({ ...remarkModal.payload, ...remarkPayload });
+    }
+
+    closeRemarkModal();
   };
 
   if (isLoading) {
@@ -101,11 +134,11 @@ export default function AgentChatPage({ backPath = '/agent/tickets' }) {
           children: (
             <div>
               <Space wrap size={8}>
-                <Select value={ticket.status} onChange={(v) => updateMutation.mutate({ status: v })} style={{ width: 110 }} size="small"
+                <Select value={ticket.status} onChange={(v) => openRemarkModal('update', { status: v }, 'Update Status')} style={{ width: 110 }} size="small"
                   options={[{ value: 'open', label: 'Open' }, { value: 'in-progress', label: 'In Progress' }, { value: 'resolved', label: 'Resolved' }, { value: 'closed', label: 'Closed' }]} />
-                <Select value={ticket.priority} onChange={(v) => updateMutation.mutate({ priority: v })} style={{ width: 100 }} size="small"
+                <Select value={ticket.priority} onChange={(v) => openRemarkModal('update', { priority: v }, 'Update Priority')} style={{ width: 100 }} size="small"
                   options={[{ value: 'low', label: 'Low' }, { value: 'medium', label: 'Medium' }, { value: 'high', label: 'High' }, { value: 'urgent', label: 'Urgent' }]} />
-                <Select value={ticket.category} onChange={(v) => updateMutation.mutate({ category: v })} style={{ width: 110 }} size="small"
+                <Select value={ticket.category} onChange={(v) => openRemarkModal('update', { category: v }, 'Update Category')} style={{ width: 110 }} size="small"
                   options={[{ value: 'account', label: 'Account' }, { value: 'billing', label: 'Billing' }, { value: 'technical', label: 'Technical' }, { value: 'gameplay', label: 'Gameplay' }, { value: 'security', label: 'Security' }, { value: 'general', label: 'General' }]} />
               </Space>
               
@@ -118,7 +151,7 @@ export default function AgentChatPage({ backPath = '/agent/tickets' }) {
                 <AgentSelect
                   currentAgentId={ticket.assignedToId}
                   ticketCategory={ticket.category}
-                  onSelect={(agentId) => reassignMutation.mutate(agentId)}
+                  onSelect={(agentId) => openRemarkModal('reassign', { agentId }, 'Reassign Ticket')}
                   disabled={reassignMutation.isPending || ticket.status === 'resolved' || ticket.status === 'closed'}
                   placeholder="Select agent to reassign"
                 />
@@ -232,6 +265,27 @@ export default function AgentChatPage({ backPath = '/agent/tickets' }) {
           </div>
         </div>
       )}
+
+      <Modal
+        title={remarkModal.title || 'Add Remark'}
+        open={remarkModal.open}
+        onCancel={closeRemarkModal}
+        onOk={submitRemark}
+        okText="Save"
+        cancelText="Cancel"
+        okButtonProps={{ loading: updateMutation.isPending || reassignMutation.isPending }}
+      >
+        <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
+          {isAgentUser ? 'Remark is required and visible to the user and admins.' : 'Remark is optional and visible to the user and admins.'}
+        </Text>
+        <TextArea
+          rows={3}
+          maxLength={500}
+          placeholder={isAgentUser ? 'Enter remark (required)' : 'Enter remark (optional)'}
+          value={remarkText}
+          onChange={(e) => setRemarkText(e.target.value)}
+        />
+      </Modal>
     </div>
   );
 }
