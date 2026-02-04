@@ -8,6 +8,7 @@ import ticketRoutes from "./tickets.js";
 import dashboardRoutes from "./dashboard.js";
 import agentRoutes from "./agent.js";
 import adminRoutes from "./admin.js";
+import a2aRoutes from "./a2a.js";
 
 const router = Router();
 
@@ -20,5 +21,6 @@ router.use("/tickets", ticketRoutes);
 router.use("/dashboard", dashboardRoutes);
 router.use("/agent", agentRoutes);
 router.use("/admin", adminRoutes);
+router.use("/a2a", a2aRoutes);
 
 export default router;

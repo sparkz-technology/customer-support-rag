@@ -7,7 +7,8 @@ const auditLogSchema = new mongoose.Schema({
     enum: [
       'user.login', 'user.logout', 'user.created', 'user.updated', 'user.deleted',
       'ticket.created', 'ticket.updated', 'ticket.assigned', 'ticket.resolved', 'ticket.closed',
-      'ticket.message', 'ticket.sla_breached',
+      'ticket.message', 'ticket.message_added', 'ticket.agent_replied',
+      'ticket.reopened', 'ticket.reassigned', 'ticket.sla_breached', 'ticket.sla_recalculated',
       'agent.created', 'agent.updated', 'agent.deleted', 'agent.activated', 'agent.deactivated',
       'admin.role_changed', 'admin.settings_updated',
       'system.error', 'system.startup', 'system.shutdown'

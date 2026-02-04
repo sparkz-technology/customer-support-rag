@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAgentTicket, useAgentReply, useAgentUpdateTicket, useReassignTicket } from '../api/useAgent';
-import { Input, Button, Tag, Typography, Spin, Empty, Space, Select, Avatar, Alert, Collapse, Divider, Tooltip, Modal, message } from 'antd';
+import { Input, Button, Tag, Typography, Spin, Empty, Space, Select, Avatar, Alert, Collapse, Divider, Tooltip, Modal, message as antdMessage } from 'antd';
 import {
   ArrowLeftOutlined, SendOutlined, ClockCircleOutlined, CheckCircleOutlined,
   ExclamationCircleOutlined, UserOutlined, RobotOutlined, ReloadOutlined,
@@ -10,6 +10,7 @@ import {
 import { SLADisplay, ManualReviewBadge, ReopenBadge, AgentSelect } from '../../tickets/components';
 import { getSLAStatus } from '../../tickets/utils/slaUtils';
 import { useAuthStore } from '../../../store/authStore';
+import { a2aApi } from '../../../api/client';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -17,10 +18,13 @@ const { TextArea } = Input;
 export default function AgentChatPage({ backPath = '/agent/tickets' }) {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [message, setMessage] = useState('');
+  const [replyMessage, setReplyMessage] = useState('');
   const messagesEndRef = useRef(null);
   const [remarkModal, setRemarkModal] = useState({ open: false, action: null, payload: null, title: '' });
   const [remarkText, setRemarkText] = useState('');
+  const [a2aState, setA2aState] = useState({ open: false, loading: false, error: null, task: null, data: null });
+  const [a2aRemark, setA2aRemark] = useState('');
+  const [a2aApplyLoading, setA2aApplyLoading] = useState(false);
   const currentUser = useAuthStore((s) => s.user);
   const isAdminUser = currentUser?.role === 'admin';
   const isAgentUser = currentUser?.role === 'agent';
@@ -37,14 +41,63 @@ export default function AgentChatPage({ backPath = '/agent/tickets' }) {
   }, [ticket?.conversation?.length]);
 
   const handleSend = () => {
-    if (!message.trim() || replyMutation.isPending) return;
-    replyMutation.mutate({ message: message.trim(), useAI: false }, {
-      onSuccess: () => setMessage(''),
+    if (!replyMessage.trim() || replyMutation.isPending) return;
+    replyMutation.mutate({ message: replyMessage.trim(), useAI: false }, {
+      onSuccess: () => setReplyMessage(''),
     });
   };
 
   const handleAIReply = () => {
     replyMutation.mutate({ message: '', useAI: true });
+  };
+
+  const extractA2AData = (task) => {
+    const artifact = task?.artifacts?.find((a) => a.name === 'ticket-fix');
+    const artifactData = artifact?.parts?.find((p) => p.type === 'data')?.data;
+    if (artifactData) return artifactData;
+
+    const history = task?.history || [];
+    for (let i = history.length - 1; i >= 0; i -= 1) {
+      const part = history[i]?.parts?.find((p) => p.type === 'data');
+      if (part?.data) return part.data;
+    }
+    return null;
+  };
+
+  const handleA2AAnalyze = async () => {
+    if (!id) return;
+    setA2aState({ open: true, loading: true, error: null, task: null, data: null });
+    setA2aRemark('');
+    try {
+      const result = await a2aApi.analyzeTicket(id);
+      const data = extractA2AData(result);
+      setA2aState({ open: true, loading: false, error: null, task: result, data });
+    } catch (err) {
+      setA2aState({ open: true, loading: false, error: err.message || 'Failed to run A2A analysis', task: null, data: null });
+    }
+  };
+
+  const handleA2AApply = async () => {
+    const updates = a2aState.data?.proposedUpdates;
+    if (!updates || Object.keys(updates).length === 0) return;
+    const trimmed = a2aRemark.trim();
+    if (isAgentUser && !trimmed) {
+      antdMessage.error('Remark is required for agent updates');
+      return;
+    }
+    setA2aApplyLoading(true);
+    try {
+      const result = await a2aApi.applyTicketUpdates(id, updates, trimmed || undefined);
+      const data = extractA2AData(result);
+      setA2aState({ open: true, loading: false, error: null, task: result, data });
+      setA2aRemark('');
+      antdMessage.success('A2A updates applied');
+      refetch();
+    } catch (err) {
+      antdMessage.error(err.message || 'Failed to apply A2A updates');
+    } finally {
+      setA2aApplyLoading(false);
+    }
   };
 
   const openRemarkModal = (action, payload, title) => {
@@ -60,7 +113,7 @@ export default function AgentChatPage({ backPath = '/agent/tickets' }) {
   const submitRemark = () => {
     const trimmed = remarkText.trim();
     if (isAgentUser && !trimmed) {
-      message.error('Remark is required for ticket updates');
+      antdMessage.error('Remark is required for ticket updates');
       return;
     }
 
@@ -122,6 +175,9 @@ export default function AgentChatPage({ backPath = '/agent/tickets' }) {
         <Tooltip title={isFetching ? 'Refreshing...' : 'Auto-refreshes every 10s'}>
           <Button size="small" icon={isFetching ? <SyncOutlined spin /> : <ReloadOutlined />} onClick={() => refetch()} />
         </Tooltip>
+        <Button size="small" icon={<ThunderboltOutlined />} onClick={handleA2AAnalyze} loading={a2aState.loading}>
+          A2A Assist
+        </Button>
       </div>
 
       {/* Settings Panel */}
@@ -285,6 +341,90 @@ export default function AgentChatPage({ backPath = '/agent/tickets' }) {
           value={remarkText}
           onChange={(e) => setRemarkText(e.target.value)}
         />
+      </Modal>
+
+      <Modal
+        title="A2A Ticket Assistant"
+        open={a2aState.open}
+        onCancel={() => setA2aState((prev) => ({ ...prev, open: false }))}
+        footer={null}
+        width={560}
+      >
+        {a2aState.loading && (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}>
+            <Spin />
+          </div>
+        )}
+        {!a2aState.loading && a2aState.error && (
+          <Alert type="error" message={a2aState.error} showIcon />
+        )}
+        {!a2aState.loading && !a2aState.error && (
+          <>
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
+              Suggested Response
+            </Text>
+            <Input.TextArea
+              rows={4}
+              value={a2aState.data?.suggestedResponse || ''}
+              readOnly
+              placeholder="No response suggested"
+              style={{ marginBottom: 8 }}
+            />
+            <Space style={{ marginBottom: 12 }}>
+              <Button
+                size="small"
+                disabled={!a2aState.data?.suggestedResponse}
+                onClick={() => {
+                  if (!a2aState.data?.suggestedResponse) return;
+                  setMessage(a2aState.data.suggestedResponse);
+                }}
+              >
+                Use Reply
+              </Button>
+            </Space>
+
+            <Divider style={{ margin: '8px 0' }} />
+
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>
+              Proposed Updates
+            </Text>
+            {a2aState.data?.proposedUpdates && Object.keys(a2aState.data.proposedUpdates).length > 0 ? (
+              <div style={{ marginBottom: 12 }}>
+                {Object.entries(a2aState.data.proposedUpdates).map(([key, value]) => (
+                  <Tag key={key} style={{ marginBottom: 6 }}>{key}: {String(value)}</Tag>
+                ))}
+              </div>
+            ) : (
+              <Text type="secondary" style={{ fontSize: 12 }}>No updates proposed</Text>
+            )}
+
+            <Divider style={{ margin: '8px 0' }} />
+
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
+              {isAgentUser ? 'Remark (required)' : 'Remark (optional)'}
+            </Text>
+            <Input.TextArea
+              rows={3}
+              maxLength={500}
+              value={a2aRemark}
+              onChange={(e) => setA2aRemark(e.target.value)}
+              placeholder={isAgentUser ? 'Add remark to apply updates' : 'Add remark (optional)'}
+              style={{ marginBottom: 12 }}
+            />
+
+            <Space>
+              <Button
+                type="primary"
+                disabled={!a2aState.data?.proposedUpdates || Object.keys(a2aState.data.proposedUpdates || {}).length === 0}
+                loading={a2aApplyLoading}
+                onClick={handleA2AApply}
+              >
+                Apply Updates
+              </Button>
+              <Button onClick={() => setA2aState((prev) => ({ ...prev, open: false }))}>Close</Button>
+            </Space>
+          </>
+        )}
       </Modal>
     </div>
   );

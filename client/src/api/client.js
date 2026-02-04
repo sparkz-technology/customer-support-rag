@@ -124,6 +124,50 @@ export const authApi = {
   logout: () => apiClient('POST', '/auth/logout'),
 };
 
+// A2A JSON-RPC API
+const a2aRequest = async (method, params = {}) => {
+  const id = `a2a-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const payload = { jsonrpc: '2.0', id, method, params };
+  const res = await apiClient('POST', '/a2a', payload);
+  if (res?.error) {
+    const message = res.error?.message || 'A2A request failed';
+    throw new Error(message);
+  }
+  return res?.result ?? res;
+};
+
+export const a2aApi = {
+  sendMessage: (message, metadata) => a2aRequest('message/send', { message, metadata }),
+  getTask: (taskId, historyLength) => a2aRequest('tasks/get', { id: taskId, historyLength }),
+  listTasks: (pageSize, pageToken, historyLength) =>
+    a2aRequest('tasks/list', { pageSize, pageToken, historyLength }),
+  cancelTask: (taskId) => a2aRequest('tasks/cancel', { id: taskId }),
+  analyzeTicket: (ticketId) =>
+    a2aRequest('message/send', {
+      message: {
+        role: 'user',
+        parts: [{ type: 'data', data: { ticketId } }],
+      },
+    }),
+  applyTicketUpdates: (ticketId, updates, remark) =>
+    a2aRequest('message/send', {
+      message: {
+        role: 'user',
+        parts: [
+          {
+            type: 'data',
+            data: {
+              ticketId,
+              applyChanges: true,
+              updates,
+              ...(remark ? { remark } : {}),
+            },
+          },
+        ],
+      },
+    }),
+};
+
 // Tickets API (for users)
 export const ticketsApi = {
   list: (params = {}) => {
