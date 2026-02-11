@@ -65,7 +65,12 @@ export const useAgentReply = (ticketId) => {
       toast.success('Reply sent');
     },
     onError: (err) => {
+      console.error('Reply mutation error:', err);
       toast.error(getToastErrorMessage(err));
+    },
+    onSettled: () => {
+      // Ensure loading state is reset regardless of success/error
+      queryClient.invalidateQueries({ queryKey: agentQueryKeys.ticket(ticketId) });
     },
   });
 };

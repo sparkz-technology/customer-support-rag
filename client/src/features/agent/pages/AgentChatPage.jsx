@@ -42,13 +42,25 @@ export default function AgentChatPage({ backPath = '/agent/tickets' }) {
 
   const handleSend = () => {
     if (!replyMessage.trim() || replyMutation.isPending) return;
-    replyMutation.mutate({ message: replyMessage.trim(), useAI: false }, {
-      onSuccess: () => setReplyMessage(''),
+    const message = replyMessage.trim();
+    replyMutation.mutate({ message, useAI: false }, {
+      onSuccess: () => {
+        setReplyMessage('');
+      },
+      onError: (err) => {
+        console.error('Send message error:', err);
+        // Keep message in input so user can retry
+      },
     });
   };
 
   const handleAIReply = () => {
-    replyMutation.mutate({ message: '', useAI: true });
+    if (replyMutation.isPending) return;
+    replyMutation.mutate({ message: '', useAI: true }, {
+      onError: (err) => {
+        console.error('AI reply error:', err);
+      },
+    });
   };
 
   const extractA2AData = (task) => {
@@ -259,6 +271,18 @@ export default function AgentChatPage({ backPath = '/agent/tickets' }) {
             />
           )}
         </>
+      )}
+
+      {/* Reply Error Alert */}
+      {replyMutation.isError && (
+        <Alert
+          description={<span style={{ fontSize: 12 }}>Failed to send message. Please try again.</span>}
+          type="error"
+          showIcon
+          closable
+          onClose={() => replyMutation.reset()}
+          style={{ margin: '0 16px 8px', padding: '6px 12px' }}
+        />
       )}
 
       {/* Messages */}

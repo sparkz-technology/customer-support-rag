@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { triageApi } from '../api/client';
 import { useCreateTicket } from '../features/tickets/api/useTickets';
 import toast from 'react-hot-toast';
-import { Input, Button, Typography, Avatar, Spin, Space } from 'antd';
+import { Input, Button, Typography, Avatar, Spin, Space, Alert } from 'antd';
 import { SendOutlined, RobotOutlined, UserOutlined, DeleteOutlined, FileAddOutlined, ThunderboltOutlined } from '@ant-design/icons';
 
 const { Title, Text, Paragraph } = Typography;
@@ -19,11 +19,20 @@ export default function AIChat() {
 
   const chatMutation = useMutation({
     mutationFn: (message) => triageApi.analyze(message),
-    onMutate: (message) => { setMessages(prev => [...prev, { role: 'user', content: message }]); },
-    onSuccess: (data) => { setMessages(prev => [...prev, { role: 'assistant', content: data.response }]); },
+    onMutate: (message) => { 
+      setMessages(prev => [...prev, { role: 'user', content: message }]); 
+    },
+    onSuccess: (data) => { 
+      setMessages(prev => [...prev, { role: 'assistant', content: data?.response || 'Response received.' }]); 
+    },
     onError: (err) => {
-      toast.error(err.message || 'Failed');
-      setMessages(prev => [...prev, { role: 'assistant', content: "Sorry, error occurred. Try again or create a ticket." }]);
+      console.error('Chat mutation error:', err);
+      toast.error(err?.message || 'Failed to send message');
+      setMessages(prev => [...prev, { role: 'assistant', content: "Sorry, an error occurred. Please try again or create a ticket." }]);
+    },
+    onSettled: () => {
+      // Ensure input is enabled after mutation completes (success or error)
+      setTimeout(() => inputRef.current?.focus(), 100);
     },
   });
 
@@ -67,6 +76,19 @@ export default function AIChat() {
           <Button size="small" icon={<DeleteOutlined />} onClick={handleClear}>Clear</Button>
         </Space>
       </div>
+
+      {/* Error Alert */}
+      {chatMutation.isError && (
+        <Alert
+          type="error"
+          message="Failed to send message"
+          description="Please try again or create a support ticket if the issue persists."
+          showIcon
+          closable
+          onClose={() => chatMutation.reset()}
+          style={{ margin: '8px 16px' }}
+        />
+      )}
 
       <div style={{ flex: 1, overflow: 'auto', padding: 16 }}>
         <div style={{ maxWidth: 700, margin: '0 auto' }}>
