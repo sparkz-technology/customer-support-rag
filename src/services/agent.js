@@ -253,7 +253,18 @@ Guidelines:
       },
     };
   } catch (error) {
-    console.error("Simple chat error:", error.message);
+    console.error("Simple chat error:", error.message, error);
+    
+    // Check for API key issues
+    if (error.message?.includes('API Key') || error.message?.includes('401') || error.status === 401) {
+      throw new Error("AI service authentication failed. Please check API configuration.");
+    }
+    
+    // Check for rate limiting
+    if (error.status === 429 || error.message?.includes('rate limit')) {
+      throw new Error("AI service rate limit reached. Please try again in a moment.");
+    }
+    
     throw new Error("Unable to process your request. Please try again.");
   }
 };
@@ -436,7 +447,12 @@ ${summaryMemory ? `Summary Memory: ${summaryMemory}` : ''}${ragContext}`;
     return finalResponse;
     
   } catch (error) {
-    console.error("Agent error:", error.message);
+    console.error("Agent error:", error.message, error);
+    
+    // Check for API key issues
+    if (error.message?.includes('API Key') || error.message?.includes('401') || error.status === 401) {
+      throw new Error("AI service authentication failed. Please check API configuration.");
+    }
     
     // Fallback to simple response
     try {
@@ -447,7 +463,13 @@ ${summaryMemory ? `Summary Memory: ${summaryMemory}` : ''}${ragContext}`;
       });
       return validation.processedResponse;
     } catch (fallbackError) {
-      console.error("Fallback error:", fallbackError.message);
+      console.error("Fallback error:", fallbackError.message, fallbackError);
+      
+      // Check for API key issues in fallback
+      if (fallbackError.message?.includes('API Key') || fallbackError.message?.includes('401') || fallbackError.status === 401) {
+        throw new Error("AI service authentication failed. Please check API configuration.");
+      }
+      
       return getFallbackResponse({ type: 'error' });
     }
   }
