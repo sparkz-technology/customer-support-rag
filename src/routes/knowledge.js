@@ -1,6 +1,7 @@
 import { Router } from "express";
+import crypto from "crypto";
 import { Document } from "@langchain/core/documents";
-import { addDocuments, searchWithScores } from "../services/rag.js";
+import { addDocuments, searchHybridWithScores } from "../services/rag.js";
 import { requireAuth, uploadText } from "../middleware/index.js";
 import { schemas } from "../services/validator.js";
 
@@ -22,22 +23,31 @@ router.post("/upload", requireAuth, uploadText.single("file"), async (req, res, 
 
     // Split content into chunks (by paragraphs or fixed size)
     const chunks = splitIntoChunks(content, 1000);
+    const addedAt = new Date();
 
-    const docs = chunks.map(
-      (chunk, index) =>
-        new Document({
-          pageContent: chunk,
-          metadata: {
-            filename: req.file.originalname,
-            category: category || "general",
-            topic: topic || "support",
-            chunkIndex: index,
-            totalChunks: chunks.length,
-            addedBy: req.user.email,
-            addedAt: new Date(),
-          },
-        })
-    );
+    const docs = chunks.flatMap((chunk, index) => {
+      const parentId = buildParentId(chunk, `${req.file.originalname}-${index}`);
+      const sentences = splitSentences(chunk);
+
+      return sentences.map(
+        (sentence, sentenceIndex) =>
+          new Document({
+            pageContent: sentence,
+            metadata: {
+              filename: req.file.originalname,
+              category: category || "general",
+              topic: topic || "support",
+              chunkIndex: index,
+              totalChunks: chunks.length,
+              addedBy: req.user.email,
+              addedAt,
+              parentId,
+              parentText: chunk,
+              sentenceIndex,
+            },
+          })
+      );
+    });
 
     const result = await addDocuments(docs);
     res.json({
@@ -61,13 +71,26 @@ router.post("/documents", requireAuth, async (req, res, next) => {
       return res.status(400).json({ error: validation.errors[0], details: validation.errors });
     }
 
-    const docs = documents.map(
-      (d) =>
-        new Document({
-          pageContent: d.content,
-          metadata: { ...d.metadata, addedBy: req.user.email, addedAt: new Date() },
-        })
-    );
+    const addedAt = new Date();
+    const docs = documents.flatMap((d, index) => {
+      const parentId = buildParentId(d.content, d.metadata?.topic || String(index));
+      const sentences = splitSentences(d.content);
+
+      return sentences.map(
+        (sentence, sentenceIndex) =>
+          new Document({
+            pageContent: sentence,
+            metadata: {
+              ...d.metadata,
+              addedBy: req.user.email,
+              addedAt,
+              parentId,
+              parentText: d.content,
+              sentenceIndex,
+            },
+          })
+      );
+    });
 
     const result = await addDocuments(docs);
     res.json({ success: true, ...result });
@@ -86,7 +109,7 @@ router.get("/search", requireAuth, async (req, res, next) => {
       return res.status(400).json({ error: validation.errors[0], details: validation.errors });
     }
 
-    const results = await searchWithScores(q, parseInt(limit));
+    const results = await searchHybridWithScores(q, parseInt(limit));
     res.json({ success: true, results });
   } catch (err) {
     next(err);
@@ -113,6 +136,23 @@ function splitIntoChunks(text, maxChunkSize = 1000) {
   }
 
   return chunks.length ? chunks : [text];
+}
+
+function splitSentences(text) {
+  if (!text) return [];
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (!normalized) return [];
+  return normalized
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => sentence.length > 0);
+}
+
+function buildParentId(content, suffix) {
+  const hash = crypto.createHash("sha256");
+  hash.update(content || "");
+  hash.update(suffix || "");
+  return hash.digest("hex").slice(0, 16);
 }
 
 export default router;

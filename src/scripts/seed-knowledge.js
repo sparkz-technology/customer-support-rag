@@ -1,4 +1,5 @@
 import "dotenv/config";
+import crypto from "crypto";
 import { Document } from "@langchain/core/documents";
 import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
 import { PineconeStore } from "@langchain/pinecone";
@@ -40,6 +41,23 @@ const knowledgeBase = [
   },
 ];
 
+const splitSentences = (text) => {
+  if (!text) return [];
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (!normalized) return [];
+  return normalized
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => sentence.length > 0);
+};
+
+const buildParentId = (content, topic) => {
+  const hash = crypto.createHash("sha256");
+  hash.update(content);
+  hash.update(topic || "");
+  return hash.digest("hex").slice(0, 16);
+};
+
 async function seedKnowledge() {
   try {
     console.log("Connecting to Pinecone...");
@@ -54,13 +72,24 @@ async function seedKnowledge() {
       apiKey: CONFIG.GOOGLE_API_KEY,
     });
 
-    const docs = knowledgeBase.map(
-      (kb) =>
+    const seededAt = new Date().toISOString();
+    const docs = knowledgeBase.flatMap((kb) => {
+      const parentId = buildParentId(kb.content, kb.metadata?.topic);
+      const sentences = splitSentences(kb.content);
+
+      return sentences.map((sentence, index) =>
         new Document({
-          pageContent: kb.content,
-          metadata: { ...kb.metadata, seededAt: new Date().toISOString() },
+          pageContent: sentence,
+          metadata: {
+            ...kb.metadata,
+            seededAt,
+            parentId,
+            parentText: kb.content,
+            sentenceIndex: index,
+          },
         })
-    );
+      );
+    });
 
     console.log(`Seeding ${docs.length} documents to Pinecone...`);
 

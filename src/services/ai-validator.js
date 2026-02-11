@@ -3,6 +3,9 @@
  * Validates, sanitizes, and ensures quality of AI agent responses
  */
 
+import { ChatGroq } from "@langchain/groq";
+import { CONFIG } from "../config/index.js";
+
 // Blocked patterns - things the AI should never say
 const BLOCKED_PATTERNS = [
   // Internal system references
@@ -245,7 +248,46 @@ export function getFallbackResponse(context = {}) {
 /**
  * Main validation function - validates and processes AI response
  */
-export function validateAIResponse(response, customerMessage = '') {
+export async function judgeResponseWithCritic({ response, customerMessage, ragContext }) {
+  if (!CONFIG.GROQ_API_KEY || !ragContext) {
+    return { grounded: true, issues: [], confidence: "low" };
+  }
+
+  const model = new ChatGroq({
+    model: "llama-3.1-8b-instant",
+    temperature: 0,
+    apiKey: CONFIG.GROQ_API_KEY,
+    maxTokens: 512,
+  });
+
+  const systemPrompt = "You are a strict groundedness judge. Check if the answer contains claims not supported by the provided context. Return strict JSON: {grounded:boolean, issues:[string], confidence:'low'|'medium'|'high'}.";
+  const userPrompt = `Customer message: ${customerMessage || "(none)"}\n\nContext:\n${ragContext}\n\nAnswer:\n${response}`;
+
+  try {
+    const judge = await model.invoke([
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt },
+    ]);
+
+    const jsonStart = judge.content.indexOf("{");
+    const jsonEnd = judge.content.lastIndexOf("}");
+    if (jsonStart === -1 || jsonEnd === -1) {
+      return { grounded: true, issues: [], confidence: "low" };
+    }
+
+    const parsed = JSON.parse(judge.content.slice(jsonStart, jsonEnd + 1));
+    return {
+      grounded: parsed.grounded !== false,
+      issues: Array.isArray(parsed.issues) ? parsed.issues : [],
+      confidence: parsed.confidence || "low",
+    };
+  } catch (err) {
+    console.warn("Critic validation failed:", err.message);
+    return { grounded: true, issues: [], confidence: "low" };
+  }
+}
+
+export async function validateAIResponse(response, customerMessage = '', options = {}) {
   const result = {
     isValid: true,
     originalResponse: response,
@@ -285,8 +327,27 @@ export function validateAIResponse(response, customerMessage = '') {
   
   // 5. Sanitize response
   result.processedResponse = sanitizeResponse(response);
+
+  // 6. Critic groundedness check
+  if (options.enableCritic) {
+    const critic = await judgeResponseWithCritic({
+      response: result.processedResponse,
+      customerMessage,
+      ragContext: options.ragContext || "",
+    });
+
+    result.metadata.critic = critic;
+    if (!critic.grounded) {
+      result.isValid = false;
+      result.issues.push({
+        type: "groundedness",
+        message: critic.issues.join(" ") || "Answer contains unsupported claims",
+        severity: "high",
+      });
+    }
+  }
   
-  // 6. If invalid, provide fallback
+  // 7. If invalid, provide fallback
   if (!result.isValid) {
     const highSeverityIssues = result.issues.filter(i => i.severity === 'high');
     
@@ -297,7 +358,7 @@ export function validateAIResponse(response, customerMessage = '') {
     }
   }
   
-  // 7. Add low confidence fallback suggestion
+  // 8. Add low confidence fallback suggestion
   if (confidence.isLowConfidence && !result.metadata.recommendedAction) {
     result.metadata.recommendedAction = 'review';
     result.metadata.fallbackAvailable = getFallbackResponse({ type: 'lowConfidence' });
@@ -348,5 +409,6 @@ export default {
   sanitizeResponse,
   getFallbackResponse,
   validateAIResponse,
+  judgeResponseWithCritic,
   validateToolCall,
 };

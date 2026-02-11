@@ -3,7 +3,7 @@ import { DynamicStructuredTool } from "@langchain/core/tools";
 import { z } from "zod";
 import { CONFIG } from "../config/index.js";
 import { Customer, Ticket } from "../models/index.js";
-import { getRAGContext, searchWithScores } from "./rag.js";
+import { getRAGBundle, searchHybridWithScores } from "./rag.js";
 import { 
   validateAIResponse, 
   validateToolCall, 
@@ -46,6 +46,19 @@ const rateLimiter = {
 
 // Clean up rate limiter periodically
 setInterval(() => rateLimiter.clear(), 60000);
+
+const MAX_PROMPT_TOKENS = 3000;
+const MAX_RAG_TOKENS = 1200;
+const MAX_HISTORY_TOKENS = 900;
+const estimateTokens = (text) => Math.ceil((text || "").length / 4);
+const trimToTokenBudget = (text, budget) => {
+  if (!text) return "";
+  if (estimateTokens(text) <= budget) return text;
+  return text.slice(0, budget * 4);
+};
+
+const stripThoughtTag = (text) =>
+  (text || "").replace(/<thought>[\s\S]*?<\/thought>/gi, "").trim();
 
 /**
  * Create tools for the AI agent with validation
@@ -90,7 +103,7 @@ function createTools(customerEmail) {
         }
         
         try {
-          const results = await searchWithScores(query, 3);
+          const results = await searchHybridWithScores(query, 5);
           if (results.length === 0) return "No relevant documentation found.";
           return results.map(r => r.content).join("\n\n");
         } catch (e) {
@@ -167,9 +180,10 @@ export const runSimpleChat = async (input, customerEmail) => {
   // Get RAG context
   let ragContext = "";
   try {
-    const context = await getRAGContext(input, 3);
-    if (context) {
-      ragContext = `\n\nRelevant Knowledge Base Information:\n${context}`;
+    const bundle = await getRAGBundle(input, { fetchK: 10, topK: 5, useHybrid: true, useRerank: true });
+    if (bundle?.context) {
+      const trimmed = trimToTokenBudget(bundle.context, MAX_RAG_TOKENS);
+      ragContext = `\n\nRelevant Knowledge Base Information:\n${trimmed}`;
     }
   } catch (e) {
     console.error("RAG context error:", e.message);
@@ -206,7 +220,23 @@ Guidelines:
     ]);
 
     // Validate AI response
-    const validation = validateAIResponse(response.content, input);
+    const validation = await validateAIResponse(stripThoughtTag(response.content), input, {
+      enableCritic: true,
+      ragContext,
+    });
+
+    let finalResponse = validation.processedResponse;
+    if (!validation.isValid) {
+      const rewrite = await model.invoke([
+        { role: "system", content: "Rewrite the answer to be fully grounded in the provided context. Do not add any new facts." },
+        { role: "user", content: `Context:\n${ragContext}\n\nOriginal answer:\n${validation.processedResponse}\n\nIssues:\n${validation.issues.map(i => i.message || i.type).join("; ")}` },
+      ]);
+      const revised = await validateAIResponse(stripThoughtTag(rewrite.content), input, {
+        enableCritic: true,
+        ragContext,
+      });
+      finalResponse = revised.processedResponse;
+    }
     
     // Log validation issues for monitoring
     if (validation.issues.length > 0) {
@@ -215,7 +245,7 @@ Guidelines:
 
     // Return processed response with metadata
     return {
-      content: validation.processedResponse,
+      content: finalResponse,
       metadata: {
         escalation: escalation.shouldEscalate ? escalation : null,
         confidence: validation.metadata.confidence,
@@ -271,13 +301,16 @@ export const runAgent = async (input, customerInfo, conversationHistory = []) =>
   // Get RAG context
   let ragContext = "";
   try {
-    const context = await getRAGContext(input, 3);
-    if (context) {
-      ragContext = `\n\nKnowledge Base Context:\n${context}`;
+    const bundle = await getRAGBundle(input, { fetchK: 10, topK: 5, useHybrid: true, useRerank: true });
+    if (bundle?.context) {
+      const trimmed = trimToTokenBudget(bundle.context, MAX_RAG_TOKENS);
+      ragContext = `\n\nKnowledge Base Context:\n${trimmed}`;
     }
   } catch (e) {
     console.error("RAG context error:", e.message);
   }
+
+  const summaryMemory = customerInfo?.summary || customerInfo?.conversationSummary || "";
 
   const systemPrompt = `You are an AI Support Agent for a gaming company.
 
@@ -294,16 +327,34 @@ Guidelines:
 - If unsure, say so and offer to connect with a human agent
 - Keep responses focused and under 300 words
 
-Customer Info: ${customerEmail ? `Email: ${customerEmail}` : 'Anonymous'}${ragContext}`;
+Customer Info: ${customerEmail ? `Email: ${customerEmail}` : 'Anonymous'}
+${summaryMemory ? `Summary Memory: ${summaryMemory}` : ''}${ragContext}`;
 
   // Build message history (limit to prevent token overflow)
-  const recentHistory = conversationHistory.slice(-6);
+  const recentHistory = conversationHistory.slice(-12);
+  const historyBudget = MAX_HISTORY_TOKENS;
+  const systemTokens = estimateTokens(systemPrompt);
+  const userTokens = estimateTokens(input);
+  const remainingForHistory = Math.max(0, MAX_PROMPT_TOKENS - systemTokens - userTokens - estimateTokens(ragContext));
+  const effectiveHistoryBudget = Math.min(historyBudget, remainingForHistory);
+
+  const historyMessages = [];
+  let usedHistoryTokens = 0;
+  for (let i = recentHistory.length - 1; i >= 0; i -= 1) {
+    const item = recentHistory[i];
+    const content = typeof item.content === 'string' ? item.content.slice(0, 1000) : String(item.content);
+    const tokens = estimateTokens(content);
+    if (usedHistoryTokens + tokens > effectiveHistoryBudget) break;
+    usedHistoryTokens += tokens;
+    historyMessages.push({
+      role: item.role === "customer" ? "user" : item.role === "agent" ? "assistant" : "system",
+      content,
+    });
+  }
+
   const messages = [
     { role: "system", content: systemPrompt },
-    ...recentHistory.map(m => ({
-      role: m.role === "customer" ? "user" : m.role === "agent" ? "assistant" : "system",
-      content: typeof m.content === 'string' ? m.content.slice(0, 1000) : String(m.content),
-    })),
+    ...historyMessages.reverse(),
     { role: "user", content: input },
   ];
 
@@ -350,7 +401,10 @@ Customer Info: ${customerEmail ? `Email: ${customerEmail}` : 'Anonymous'}${ragCo
     const rawResponse = response.content || getFallbackResponse({ type: 'error' });
     
     // Validate AI response
-    const validation = validateAIResponse(rawResponse, input);
+    const validation = await validateAIResponse(stripThoughtTag(rawResponse), input, {
+      enableCritic: true,
+      ragContext,
+    });
     
     // Log validation issues
     if (validation.issues.length > 0) {
@@ -366,7 +420,20 @@ Customer Info: ${customerEmail ? `Email: ${customerEmail}` : 'Anonymous'}${ragCo
       console.log("Escalation recommended for:", customerEmail);
     }
 
-    return validation.processedResponse;
+    let finalResponse = validation.processedResponse;
+    if (!validation.isValid) {
+      const rewrite = await model.invoke([
+        { role: "system", content: "Rewrite the answer to be fully grounded in the provided context. Do not add any new facts." },
+        { role: "user", content: `Context:\n${ragContext}\n\nOriginal answer:\n${validation.processedResponse}\n\nIssues:\n${validation.issues.map(i => i.message || i.type).join("; ")}` },
+      ]);
+      const revised = await validateAIResponse(stripThoughtTag(rewrite.content), input, {
+        enableCritic: true,
+        ragContext,
+      });
+      finalResponse = revised.processedResponse;
+    }
+
+    return finalResponse;
     
   } catch (error) {
     console.error("Agent error:", error.message);
@@ -374,7 +441,10 @@ Customer Info: ${customerEmail ? `Email: ${customerEmail}` : 'Anonymous'}${ragCo
     // Fallback to simple response
     try {
       const simpleResponse = await model.invoke(messages.slice(0, 3)); // System + last user message
-      const validation = validateAIResponse(simpleResponse.content, input);
+      const validation = await validateAIResponse(stripThoughtTag(simpleResponse.content), input, {
+        enableCritic: true,
+        ragContext,
+      });
       return validation.processedResponse;
     } catch (fallbackError) {
       console.error("Fallback error:", fallbackError.message);

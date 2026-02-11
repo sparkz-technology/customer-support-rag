@@ -2,9 +2,12 @@ import crypto from "crypto";
 import { A2ATask, Ticket } from "../../models/index.js";
 import { CONFIG } from "../../config/index.js";
 import { runAgent } from "../agent.js";
-import { detectCategory } from "../ticket/ticket-assignment.js";
 import { updateTicket as updateTicketByAgent } from "../agent/agent-panel.service.js";
 import { sanitizeString } from "../validator.js";
+import { ChatGroq } from "@langchain/groq";
+import { DynamicStructuredTool } from "@langchain/core/tools";
+import { z } from "zod";
+import { searchHybridWithScores } from "../rag.js";
 
 const TASK_STATES = {
   SUBMITTED: "submitted",
@@ -30,13 +33,165 @@ const extractTicketId = (text) => {
   return match ? match[0] : null;
 };
 
-const inferPriority = (text) => {
+const stripThoughtTag = (text) =>
+  (text || "").replace(/<thought>[\s\S]*?<\/thought>/gi, "").trim();
+
+const extractJsonPayload = (text) => {
   if (!text) return null;
-  const urgentSignals = /(urgent|immediately|asap|critical|outage)/i;
-  const highSignals = /(payment failed|billing issue|security|breach)/i;
-  if (urgentSignals.test(text)) return "urgent";
-  if (highSignals.test(text)) return "high";
-  return null;
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start === -1 || end === -1 || end <= start) return null;
+  try {
+    return JSON.parse(text.slice(start, end + 1));
+  } catch (err) {
+    return null;
+  }
+};
+
+const A2AResponseSchema = z.object({
+  suggestedResponse: z.string().optional().default(""),
+  proposedUpdates: z.object({
+    priority: z.string().optional(),
+    category: z.string().optional(),
+    status: z.string().optional(),
+  }).optional().default({}),
+  notes: z.string().optional(),
+});
+
+const createA2ATools = (proposedUpdates) => [
+  new DynamicStructuredTool({
+    name: "update_ticket_priority",
+    description: "Propose an updated ticket priority: low, medium, high, urgent.",
+    schema: z.object({
+      priority: z.enum(["low", "medium", "high", "urgent"]),
+      reason: z.string().optional(),
+    }),
+    func: async ({ priority }) => {
+      proposedUpdates.priority = priority;
+      return JSON.stringify({ ok: true, priority });
+    },
+  }),
+  new DynamicStructuredTool({
+    name: "update_ticket_category",
+    description: "Propose a ticket category update based on the issue.",
+    schema: z.object({
+      category: z.string().min(2),
+      reason: z.string().optional(),
+    }),
+    func: async ({ category }) => {
+      proposedUpdates.category = category;
+      return JSON.stringify({ ok: true, category });
+    },
+  }),
+  new DynamicStructuredTool({
+    name: "update_ticket_status",
+    description: "Propose a ticket status update: open, in-progress, pending, resolved, closed.",
+    schema: z.object({
+      status: z.enum(["open", "in-progress", "pending", "resolved", "closed"]),
+      reason: z.string().optional(),
+    }),
+    func: async ({ status }) => {
+      proposedUpdates.status = status;
+      return JSON.stringify({ ok: true, status });
+    },
+  }),
+  new DynamicStructuredTool({
+    name: "search_knowledge_base",
+    description: "Search the knowledge base for relevant troubleshooting steps.",
+    schema: z.object({
+      query: z.string().min(2).max(500),
+    }),
+    func: async ({ query }) => {
+      try {
+        const results = await searchHybridWithScores(query, 5);
+        if (results.length === 0) return "No relevant documentation found.";
+        return results.map((r) => r.content).join("\n\n");
+      } catch (err) {
+        console.error("A2A knowledge search failed:", err.message);
+        return "Knowledge base search unavailable.";
+      }
+    },
+  }),
+];
+
+const runTicketFixAgent = async (ticket, messageText) => {
+  if (!CONFIG.GROQ_API_KEY) {
+    return { suggestedResponse: "", proposedUpdates: {} };
+  }
+
+  const proposedUpdates = {};
+  const tools = createA2ATools(proposedUpdates);
+  const model = new ChatGroq({
+    model: "llama-3.3-70b-versatile",
+    temperature: 0.2,
+    apiKey: CONFIG.GROQ_API_KEY,
+    maxTokens: 1024,
+  });
+
+  const systemPrompt = `You are a support ticket fixer agent.
+
+Before acting, provide a <thought> tag with your reasoning. Then either call tools or output JSON.
+Use tools to propose updates or retrieve knowledge.
+Return JSON with keys: suggestedResponse, proposedUpdates, notes.
+
+Ticket context:
+- Subject: ${ticket.subject}
+- Description: ${ticket.description}
+- Status: ${ticket.status}
+- Priority: ${ticket.priority}
+- Category: ${ticket.category}
+`;
+
+  const messages = [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: messageText || ticket.description || ticket.subject || "" },
+  ];
+
+  const modelWithTools = model.bindTools(tools, { tool_choice: "auto" });
+  let response = await modelWithTools.invoke(messages);
+  let iterations = 0;
+  const maxIterations = 3;
+
+  while (response.tool_calls && response.tool_calls.length > 0 && iterations < maxIterations) {
+    iterations += 1;
+    for (const toolCall of response.tool_calls) {
+      const tool = tools.find((t) => t.name === toolCall.name);
+      if (!tool) continue;
+      try {
+        const result = await tool.invoke(toolCall.args);
+        messages.push({
+          role: "assistant",
+          content: response.content || "",
+          tool_calls: [toolCall],
+        });
+        messages.push({
+          role: "tool",
+          content: result,
+          tool_call_id: toolCall.id,
+        });
+      } catch (err) {
+        messages.push({
+          role: "tool",
+          content: "Tool unavailable.",
+          tool_call_id: toolCall.id,
+        });
+      }
+    }
+    response = await modelWithTools.invoke(messages);
+  }
+
+  const rawOutput = stripThoughtTag(response.content || "");
+  const parsed = extractJsonPayload(rawOutput);
+  const safe = parsed ? A2AResponseSchema.safeParse(parsed) : null;
+  const payload = safe?.success
+    ? safe.data
+    : { suggestedResponse: rawOutput, proposedUpdates: {} };
+
+  return {
+    suggestedResponse: payload.suggestedResponse || "",
+    proposedUpdates: { ...proposedUpdates, ...(payload.proposedUpdates || {}) },
+    notes: payload.notes,
+  };
 };
 
 const buildTaskResponse = (taskDoc, historyLength) => {
@@ -185,27 +340,25 @@ export const handleSendMessage = async ({ message, metadata = {} }, user, req) =
   });
 
   let suggestedResponse = "";
+  let proposedUpdates = {};
   try {
-    suggestedResponse = await runAgent(
-      ticket.description || ticket.subject,
-      { email: ticket.customerEmail, customerId: ticket.customerId },
-      ticket.conversation || []
-    );
+    const agentResult = await runTicketFixAgent(ticket, text);
+    suggestedResponse = agentResult.suggestedResponse;
+    proposedUpdates = agentResult.proposedUpdates || {};
   } catch (err) {
     suggestedResponse = "Review the issue details, reproduce if possible, and provide next steps to the customer.";
   }
 
-  const proposedUpdates = {};
-  const detectedCategory = detectCategory(ticket.description || "");
-  if (detectedCategory && detectedCategory !== ticket.category) {
-    proposedUpdates.category = detectedCategory;
-  }
-  const inferredPriority = inferPriority(ticket.description || "");
-  if (inferredPriority && inferredPriority !== ticket.priority) {
-    proposedUpdates.priority = inferredPriority;
-  }
-  if (ticket.status === "open") {
-    proposedUpdates.status = "in-progress";
+  if (!suggestedResponse) {
+    try {
+      suggestedResponse = await runAgent(
+        ticket.description || ticket.subject,
+        { email: ticket.customerEmail, customerId: ticket.customerId },
+        ticket.conversation || []
+      );
+    } catch (err) {
+      suggestedResponse = "Review the issue details, reproduce if possible, and provide next steps to the customer.";
+    }
   }
 
   let appliedUpdates = null;
