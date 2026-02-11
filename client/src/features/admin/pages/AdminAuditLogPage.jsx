@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { adminApi } from '../api/adminApi';
+import { useAdminAuditLogs } from '../api/useAdmin';
 import { Card, Table, Tag, Select, Space, Typography, Input, DatePicker, Button, Tooltip } from 'antd';
 import {
   SearchOutlined, ReloadOutlined, UserOutlined, FileTextOutlined,
@@ -16,16 +15,12 @@ export default function AdminAuditLogPage() {
   const [dateRange, setDateRange] = useState(null);
   const filterButtonStyle = { height: 24, padding: '0 8px' };
 
-  const { data, isLoading, refetch, isFetching } = useQuery({
-    queryKey: ['admin-audit-logs', filters, dateRange],
-    queryFn: () => {
-      const params = { ...filters };
-      if (dateRange?.[0]) params.startDate = dateRange[0].toISOString();
-      if (dateRange?.[1]) params.endDate = dateRange[1].toISOString();
-      Object.keys(params).forEach(k => !params[k] && delete params[k]);
-      return adminApi.getAuditLogs(params);
-    },
-  });
+  const queryParams = { ...filters };
+  if (dateRange?.[0]) queryParams.startDate = dateRange[0].toISOString();
+  if (dateRange?.[1]) queryParams.endDate = dateRange[1].toISOString();
+  Object.keys(queryParams).forEach(k => !queryParams[k] && delete queryParams[k]);
+
+  const { data, isLoading, refetch, isFetching } = useAdminAuditLogs(queryParams);
 
   const categoryConfig = {
     user: { icon: <UserOutlined />, color: '#3b82f6' },

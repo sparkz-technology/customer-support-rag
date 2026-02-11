@@ -11,6 +11,8 @@ import { SLADisplay, ManualReviewBadge, ReopenBadge, AgentSelect } from '../../t
 import { getSLAStatus } from '../../tickets/utils/slaUtils';
 import { useAuthStore } from '../../../store/authStore';
 import { a2aApi } from '../../../api/client';
+import KnowledgeSearchPanel from '../components/KnowledgeSearchPanel';
+import A2ATaskDrawer from '../components/A2ATaskDrawer';
 
 const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
@@ -249,6 +251,13 @@ export default function AgentChatPage({ backPath = '/agent/tickets' }) {
         }]}
       />
 
+      {/* Knowledge Base Search */}
+      <KnowledgeSearchPanel
+        onInsertSnippet={(snippet) => {
+          setReplyMessage((prev) => (prev ? prev + '\n\n' + snippet : snippet));
+        }}
+      />
+
       {/* SLA Alert - Show for breached or at-risk */}
       {ticket.status !== 'resolved' && ticket.status !== 'closed' && ticket.slaDueAt && (
         <>
@@ -384,6 +393,20 @@ export default function AgentChatPage({ backPath = '/agent/tickets' }) {
         )}
         {!a2aState.loading && !a2aState.error && (
           <>
+            {/* AI Reasoning / Notes */}
+            {a2aState.data?.notes && (
+              <>
+                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+                  AI Reasoning
+                </Text>
+                <Card size="small" styles={{ body: { padding: 8 } }} style={{ background: '#1f2937', border: '1px solid #374151', marginBottom: 12 }}>
+                  <Text style={{ fontSize: 11, color: '#d1d5db', whiteSpace: 'pre-wrap' }}>
+                    {a2aState.data.notes}
+                  </Text>
+                </Card>
+              </>
+            )}
+
             <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
               Suggested Response
             </Text>
@@ -414,9 +437,22 @@ export default function AgentChatPage({ backPath = '/agent/tickets' }) {
             </Text>
             {a2aState.data?.proposedUpdates && Object.keys(a2aState.data.proposedUpdates).length > 0 ? (
               <div style={{ marginBottom: 12 }}>
-                {Object.entries(a2aState.data.proposedUpdates).map(([key, value]) => (
-                  <Tag key={key} style={{ marginBottom: 6 }}>{key}: {String(value)}</Tag>
-                ))}
+                {Object.entries(a2aState.data.proposedUpdates).map(([key, value]) => {
+                  const current = ticket?.[key];
+                  const changed = current && current !== value;
+                  return (
+                    <div key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginRight: 12, marginBottom: 6 }}>
+                      <Text type="secondary" style={{ fontSize: 11, textTransform: 'capitalize' }}>{key}:</Text>
+                      {changed && (
+                        <>
+                          <Tag color="default" style={{ fontSize: 10, textDecoration: 'line-through', opacity: 0.6 }}>{String(current)}</Tag>
+                          <span style={{ fontSize: 10, color: '#6b7280' }}>→</span>
+                        </>
+                      )}
+                      <Tag color={changed ? 'green' : 'blue'} style={{ fontSize: 10 }}>{String(value)}</Tag>
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <Text type="secondary" style={{ fontSize: 12 }}>No updates proposed</Text>
@@ -450,6 +486,9 @@ export default function AgentChatPage({ backPath = '/agent/tickets' }) {
           </>
         )}
       </Modal>
+
+      {/* A2A Task Monitor */}
+      <A2ATaskDrawer />
     </div>
   );
 }

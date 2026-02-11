@@ -19,3 +19,10 @@ export {
   useReassignTicket,
   useBulkUpdateTickets,
 } from './api/useAgent';
+
+export { useKnowledgeSearch, knowledgeQueryKeys } from './api/useKnowledgeSearch';
+export { useA2ATasks, useA2ATask, a2aQueryKeys } from './api/useA2ATasks';
+
+// Components
+export { default as KnowledgeSearchPanel } from './components/KnowledgeSearchPanel';
+export { default as A2ATaskDrawer } from './components/A2ATaskDrawer';

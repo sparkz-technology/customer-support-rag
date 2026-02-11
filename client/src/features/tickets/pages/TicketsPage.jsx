@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTickets, useCreateTicket } from '../api/useTickets';
+import { useTriageAnalysis } from '../api/useTriageAnalysis';
 import { useUIStore } from '../../../store/uiStore';
 import { Card, Table, Tag, Button, Input, Space, Modal, Form, Select, Typography, Empty, Badge, Tooltip } from 'antd';
-import { PlusOutlined, SearchOutlined, ClockCircleOutlined, CheckCircleOutlined, ExclamationCircleOutlined, SyncOutlined } from '@ant-design/icons';
+import { PlusOutlined, SearchOutlined, ClockCircleOutlined, CheckCircleOutlined, ExclamationCircleOutlined, SyncOutlined, RobotOutlined } from '@ant-design/icons';
 import { SLADisplay } from '../components/SLADisplay';
 import { formatFirstResponseTime } from '../utils/ticketsPageUtils';
 
@@ -61,7 +62,9 @@ export default function TicketsPage() {
   }, [isFetching, isLoading, saveScrollPosition]);
   
   const createMutation = useCreateTicket();
+  const triageMutation = useTriageAnalysis();
   const [searchQuery, setSearchQuery] = useState('');
+  const [triageResponse, setTriageResponse] = useState(null);
   const [form] = Form.useForm();
   const handleResetFilters = () => {
     setSearchQuery('');
@@ -73,7 +76,17 @@ export default function TicketsPage() {
     const result = await createMutation.mutateAsync(values);
     closeCreateTicket();
     form.resetFields();
+    setTriageResponse(null);
     navigate(`/tickets/${result.ticket.id}`);
+  };
+
+  const handleAskAI = async () => {
+    const description = form.getFieldValue('description');
+    if (!description || description.trim().length < 10) return;
+    const result = await triageMutation.mutateAsync(description.trim());
+    if (result?.response) {
+      setTriageResponse(result.response);
+    }
   };
 
   const validateOptionalSubject = (_, value) => {
@@ -253,7 +266,7 @@ export default function TicketsPage() {
         />
       </Card>
 
-      <Modal title="Create Ticket" open={createTicketModal} onCancel={closeCreateTicket} footer={null} width={400}>
+      <Modal title="Create Ticket" open={createTicketModal} onCancel={() => { closeCreateTicket(); setTriageResponse(null); }} footer={null} width={480}>
         <Form form={form} layout="vertical" onFinish={handleCreate} initialValues={{ priority: 'medium' }} size="small">
           <Form.Item
             name="subject"
@@ -273,11 +286,35 @@ export default function TicketsPage() {
           >
             <TextArea rows={3} placeholder="Describe your issue..." />
           </Form.Item>
+
+          {/* AI Triage section */}
+          <div style={{ marginBottom: 16 }}>
+            <Button
+              size="small"
+              icon={<RobotOutlined />}
+              onClick={handleAskAI}
+              loading={triageMutation.isPending}
+              style={{ marginBottom: 8 }}
+            >
+              Ask AI First
+            </Button>
+            {triageResponse && (
+              <Card size="small" styles={{ body: { padding: 10 } }} style={{ background: '#1f2937', border: '1px solid #374151' }}>
+                <Text style={{ fontSize: 11, color: '#9ca3af', display: 'block', marginBottom: 4 }}>
+                  <RobotOutlined /> AI Suggestion
+                </Text>
+                <Text style={{ fontSize: 12, color: '#d1d5db', whiteSpace: 'pre-wrap' }}>
+                  {triageResponse}
+                </Text>
+              </Card>
+            )}
+          </div>
+
           <Form.Item name="priority" label="Priority">
             <Select options={[{ value: 'low', label: 'Low' }, { value: 'medium', label: 'Medium' }, { value: 'high', label: 'High' }, { value: 'urgent', label: 'Urgent' }]} />
           </Form.Item>
           <Form.Item style={{ marginBottom: 0 }}>
-            <Button type="primary" htmlType="submit" loading={createMutation.isPending} block>Create</Button>
+            <Button type="primary" htmlType="submit" loading={createMutation.isPending} block>Create Ticket</Button>
           </Form.Item>
         </Form>
       </Modal>

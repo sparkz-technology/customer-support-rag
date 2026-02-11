@@ -34,3 +34,5 @@ export {
   useSendMessage,
   useUpdateTicketStatus,
 } from './api/useTickets';
+
+export { useTriageAnalysis } from './api/useTriageAnalysis';
