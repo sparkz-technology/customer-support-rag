@@ -102,6 +102,7 @@ router.get("/metrics", requireAuth, async (req, res, next) => {
       {
         $project: {
           resolutionTimeMs: { $subtract: ["$resolvedAt", "$createdAt"] },
+          agentLogsSize: { $size: { $ifNull: ["$agentLogs", []] } },
         },
       },
       {
@@ -111,6 +112,11 @@ router.get("/metrics", requireAuth, async (req, res, next) => {
           minResolutionMs: { $min: "$resolutionTimeMs" },
           maxResolutionMs: { $max: "$resolutionTimeMs" },
           count: { $sum: 1 },
+          deflectedCount: {
+            $sum: {
+              $cond: [{ $lte: ["$agentLogsSize", 0] }, 1, 0],
+            },
+          },
         },
       },
     ]);
@@ -141,7 +147,7 @@ router.get("/metrics", requireAuth, async (req, res, next) => {
     // Format response
     const sla = slaStats[0] || { total: 0, breached: 0, atRisk: 0 };
     const response = responseMetrics[0] || { avgResponseMs: 0 };
-    const resolution = resolutionMetrics[0] || { avgResolutionMs: 0, count: 0 };
+    const resolution = resolutionMetrics[0] || { avgResolutionMs: 0, count: 0, deflectedCount: 0 };
 
     res.json({
       success: true,
@@ -164,6 +170,15 @@ router.get("/metrics", requireAuth, async (req, res, next) => {
         averageHours: resolution.avgResolutionMs ? (resolution.avgResolutionMs / 3600000).toFixed(1) : 0,
         averageFormatted: formatDuration(resolution.avgResolutionMs),
         totalResolved: resolution.count,
+      },
+      aiMetrics: {
+        deflectionRate: resolution.count
+          ? ((resolution.deflectedCount / resolution.count) * 100).toFixed(1) + "%"
+          : "0%",
+        deflectedCount: resolution.deflectedCount || 0,
+        averageResolutionHours: resolution.avgResolutionMs
+          ? +(resolution.avgResolutionMs / 3600000).toFixed(1)
+          : null,
       },
       distribution: {
         byStatus: statusCounts.map(s => ({ status: s._id, count: s.count })),

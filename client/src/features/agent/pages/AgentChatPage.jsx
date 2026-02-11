@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAgentTicket, useAgentReply, useAgentUpdateTicket, useReassignTicket } from '../api/useAgent';
-import { Input, Button, Tag, Typography, Spin, Empty, Space, Select, Avatar, Alert, Collapse, Divider, Tooltip, Modal, message as antdMessage } from 'antd';
+import { useA2ATask } from '../api/useA2ATasks';
+import { useApplyAIUpdates } from '../../../api/hooks';
+import { Input, Button, Tag, Typography, Spin, Empty, Space, Select, Avatar, Alert, Collapse, Divider, Tooltip, Modal, Card, message as antdMessage } from 'antd';
 import {
   ArrowLeftOutlined, SendOutlined, ClockCircleOutlined, CheckCircleOutlined,
   ExclamationCircleOutlined, UserOutlined, RobotOutlined, ReloadOutlined,
@@ -25,8 +27,8 @@ export default function AgentChatPage({ backPath = '/agent/tickets' }) {
   const [remarkModal, setRemarkModal] = useState({ open: false, action: null, payload: null, title: '' });
   const [remarkText, setRemarkText] = useState('');
   const [a2aState, setA2aState] = useState({ open: false, loading: false, error: null, task: null, data: null });
+  const [a2aTaskId, setA2aTaskId] = useState(null);
   const [a2aRemark, setA2aRemark] = useState('');
-  const [a2aApplyLoading, setA2aApplyLoading] = useState(false);
   const currentUser = useAuthStore((s) => s.user);
   const isAdminUser = currentUser?.role === 'admin';
   const isAgentUser = currentUser?.role === 'agent';
@@ -35,12 +37,31 @@ export default function AgentChatPage({ backPath = '/agent/tickets' }) {
   const replyMutation = useAgentReply(id);
   const updateMutation = useAgentUpdateTicket(id);
   const reassignMutation = useReassignTicket(id);
+  const applyAIMutation = useApplyAIUpdates();
+  const { data: polledTask } = useA2ATask(a2aTaskId);
 
   const ticket = data?.ticket;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [ticket?.conversation?.length]);
+
+  // When polled task completes, extract data into a2aState
+  useEffect(() => {
+    if (!polledTask) return;
+    const state = polledTask.status?.state;
+    if (state === 'completed' || state === 'failed') {
+      const extractedData = extractA2AData(polledTask);
+      setA2aState((prev) => ({
+        ...prev,
+        loading: false,
+        error: state === 'failed' ? (polledTask.status?.message || 'A2A task failed') : null,
+        task: polledTask,
+        data: extractedData,
+      }));
+      setA2aTaskId(null); // stop polling
+    }
+  }, [polledTask]);
 
   const handleSend = () => {
     if (!replyMessage.trim() || replyMutation.isPending) return;
@@ -82,10 +103,16 @@ export default function AgentChatPage({ backPath = '/agent/tickets' }) {
     if (!id) return;
     setA2aState({ open: true, loading: true, error: null, task: null, data: null });
     setA2aRemark('');
+    setA2aTaskId(null);
     try {
       const result = await a2aApi.analyzeTicket(id);
-      const data = extractA2AData(result);
-      setA2aState({ open: true, loading: false, error: null, task: result, data });
+      // If the response has a task ID, start polling; otherwise extract inline
+      if (result?.id && (result.status?.state === 'working' || result.status?.state === 'submitted')) {
+        setA2aTaskId(result.id);
+      } else {
+        const data = extractA2AData(result);
+        setA2aState({ open: true, loading: false, error: null, task: result, data });
+      }
     } catch (err) {
       setA2aState({ open: true, loading: false, error: err.message || 'Failed to run A2A analysis', task: null, data: null });
     }
@@ -99,18 +126,14 @@ export default function AgentChatPage({ backPath = '/agent/tickets' }) {
       antdMessage.error('Remark is required for agent updates');
       return;
     }
-    setA2aApplyLoading(true);
     try {
-      const result = await a2aApi.applyTicketUpdates(id, updates, trimmed || undefined);
+      const result = await applyAIMutation.mutateAsync({ ticketId: id, updates, remark: trimmed || undefined });
       const data = extractA2AData(result);
       setA2aState({ open: true, loading: false, error: null, task: result, data });
       setA2aRemark('');
-      antdMessage.success('A2A updates applied');
       refetch();
     } catch (err) {
-      antdMessage.error(err.message || 'Failed to apply A2A updates');
-    } finally {
-      setA2aApplyLoading(false);
+      // toast handled by the mutation
     }
   };
 
@@ -257,6 +280,60 @@ export default function AgentChatPage({ backPath = '/agent/tickets' }) {
           setReplyMessage((prev) => (prev ? prev + '\n\n' + snippet : snippet));
         }}
       />
+
+      {/* Inline AI Suggestion Card (shown after A2A completes) */}
+      {a2aState.data && !a2aState.loading && !a2aState.error && !a2aState.open && (
+        <Card
+          size="small"
+          styles={{ body: { padding: 10 } }}
+          style={{ margin: '0 16px 8px', background: '#1a2332', border: '1px solid #1d4ed8' }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <Text style={{ fontSize: 11, color: '#93c5fd' }}>
+              <ThunderboltOutlined /> AI Suggestion Ready
+            </Text>
+            <Space size={4}>
+              {a2aState.data?.suggestedResponse && (
+                <Button
+                  size="small"
+                  onClick={() => setReplyMessage(a2aState.data.suggestedResponse)}
+                  style={{ fontSize: 10, height: 22, padding: '0 6px' }}
+                >
+                  Use Reply
+                </Button>
+              )}
+              <Button
+                size="small"
+                type="primary"
+                onClick={() => setA2aState((prev) => ({ ...prev, open: true }))}
+                style={{ fontSize: 10, height: 22, padding: '0 6px' }}
+              >
+                View Details
+              </Button>
+              <Button
+                size="small"
+                onClick={() => setA2aState({ open: false, loading: false, error: null, task: null, data: null })}
+                style={{ fontSize: 10, height: 22, padding: '0 6px' }}
+              >
+                Dismiss
+              </Button>
+            </Space>
+          </div>
+          {a2aState.data?.proposedUpdates && Object.keys(a2aState.data.proposedUpdates).length > 0 && (
+            <div>
+              {Object.entries(a2aState.data.proposedUpdates).map(([key, value]) => {
+                const current = ticket?.[key];
+                const changed = current && current !== value;
+                return (
+                  <Tag key={key} color={changed ? 'green' : 'blue'} style={{ fontSize: 9, marginBottom: 2 }}>
+                    {key}: {changed ? `${current} → ${value}` : value}
+                  </Tag>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* SLA Alert - Show for breached or at-risk */}
       {ticket.status !== 'resolved' && ticket.status !== 'closed' && ticket.slaDueAt && (
@@ -476,7 +553,7 @@ export default function AgentChatPage({ backPath = '/agent/tickets' }) {
               <Button
                 type="primary"
                 disabled={!a2aState.data?.proposedUpdates || Object.keys(a2aState.data.proposedUpdates || {}).length === 0}
-                loading={a2aApplyLoading}
+                loading={applyAIMutation.isPending}
                 onClick={handleA2AApply}
               >
                 Apply Updates

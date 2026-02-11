@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
-import { Input, Card, List, Typography, Tag, Empty, Spin, Collapse } from 'antd';
-import { SearchOutlined, BookOutlined, FileTextOutlined } from '@ant-design/icons';
+import { Input, Card, List, Typography, Tag, Empty, Spin, Collapse, Button, Tooltip } from 'antd';
+import { SearchOutlined, BookOutlined, FileTextOutlined, CopyOutlined, PlusOutlined } from '@ant-design/icons';
 import { useKnowledgeSearch } from '../api/useKnowledgeSearch';
+import toast from 'react-hot-toast';
 
 const { Text, Paragraph } = Typography;
 
@@ -27,6 +28,14 @@ export default function KnowledgeSearchPanel({ onInsertSnippet }) {
     [timer],
   );
 
+  const handleCopy = (text) => {
+    navigator.clipboard.writeText(text).then(() => {
+      toast.success('Copied to clipboard');
+    }).catch(() => {
+      toast.error('Failed to copy');
+    });
+  };
+
   const results = data?.results || [];
 
   return (
@@ -43,7 +52,7 @@ export default function KnowledgeSearchPanel({ onInsertSnippet }) {
             </span>
           ),
           children: (
-            <div style={{ maxHeight: 300, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ maxHeight: 320, display: 'flex', flexDirection: 'column' }}>
               <Input
                 size="small"
                 placeholder="Search knowledge base..."
@@ -66,33 +75,55 @@ export default function KnowledgeSearchPanel({ onInsertSnippet }) {
                   <List
                     size="small"
                     dataSource={results}
-                    renderItem={(item, idx) => (
-                      <List.Item
-                        key={idx}
-                        style={{ padding: '6px 0', cursor: onInsertSnippet ? 'pointer' : 'default' }}
-                        onClick={() => onInsertSnippet?.(item.content || item.pageContent || '')}
-                      >
-                        <div style={{ width: '100%' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                            <FileTextOutlined style={{ fontSize: 11, color: '#22c55e' }} />
-                            {item.source && (
-                              <Tag style={{ fontSize: 9, padding: '0 4px' }}>{item.source}</Tag>
-                            )}
-                            {item.score != null && (
-                              <Text type="secondary" style={{ fontSize: 10, marginLeft: 'auto' }}>
-                                {(item.score * 100).toFixed(0)}% match
-                              </Text>
-                            )}
+                    renderItem={(item, idx) => {
+                      const content = item.content || item.pageContent || '';
+                      return (
+                        <List.Item
+                          key={idx}
+                          style={{ padding: '6px 0' }}
+                        >
+                          <div style={{ width: '100%' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                              <FileTextOutlined style={{ fontSize: 11, color: '#22c55e' }} />
+                              {item.source && (
+                                <Tag style={{ fontSize: 9, padding: '0 4px' }}>{item.source}</Tag>
+                              )}
+                              {item.score != null && (
+                                <Text type="secondary" style={{ fontSize: 10, marginLeft: 'auto' }}>
+                                  {(item.score * 100).toFixed(0)}% match
+                                </Text>
+                              )}
+                              <Tooltip title="Copy to clipboard">
+                                <Button
+                                  size="small"
+                                  type="text"
+                                  icon={<CopyOutlined />}
+                                  onClick={() => handleCopy(content)}
+                                  style={{ height: 18, width: 18, minWidth: 18, padding: 0, fontSize: 10 }}
+                                />
+                              </Tooltip>
+                              {onInsertSnippet && (
+                                <Tooltip title="Insert into reply">
+                                  <Button
+                                    size="small"
+                                    type="text"
+                                    icon={<PlusOutlined />}
+                                    onClick={() => onInsertSnippet(content)}
+                                    style={{ height: 18, width: 18, minWidth: 18, padding: 0, fontSize: 10 }}
+                                  />
+                                </Tooltip>
+                              )}
+                            </div>
+                            <Paragraph
+                              style={{ margin: 0, fontSize: 11, color: '#d4d4d4' }}
+                              ellipsis={{ rows: 3, expandable: true, symbol: 'more' }}
+                            >
+                              {content}
+                            </Paragraph>
                           </div>
-                          <Paragraph
-                            style={{ margin: 0, fontSize: 11, color: '#d4d4d4' }}
-                            ellipsis={{ rows: 3, expandable: true, symbol: 'more' }}
-                          >
-                            {item.content || item.pageContent || ''}
-                          </Paragraph>
-                        </div>
-                      </List.Item>
-                    )}
+                        </List.Item>
+                      );
+                    }}
                   />
                 )}
               </div>

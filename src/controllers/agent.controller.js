@@ -122,7 +122,13 @@ export const updateTicket = async (req, res, next) => {
     if (err.message === "Ticket not found" || err.message === "Agent not found") {
       return res.status(404).json({ error: err.message });
     }
-    if (err.message === "Cannot assign to inactive agent" || err.message === "No valid changes provided") {
+    if (
+      err.message === "Cannot assign to inactive agent" ||
+      err.message === "No valid changes provided" ||
+      err.message === "Remark is required for ticket updates" ||
+      err.message === "Remark must be 500 characters or less" ||
+      err.message === "Cannot reassign a resolved or closed ticket"
+    ) {
       return res.status(400).json({ error: err.message });
     }
     next(err);

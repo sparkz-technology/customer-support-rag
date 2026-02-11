@@ -1,5 +1,5 @@
 import { useDashboardMetrics, useSlaAlerts } from '../api/useDashboard';
-import { Card, Row, Col, Statistic, Progress, List, Tag, Typography, Spin, Button, Empty } from 'antd';
+import { Card, Row, Col, Statistic, Progress, List, Tag, Typography, Spin, Button, Empty, Divider } from 'antd';
 import {
   FileTextOutlined,
   ClockCircleOutlined,
@@ -8,6 +8,7 @@ import {
   ReloadOutlined,
   TeamOutlined,
   ThunderboltOutlined,
+  RobotOutlined,
 } from '@ant-design/icons';
 
 const { Title, Text } = Typography;
@@ -88,6 +89,15 @@ export default function DashboardPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <Text type="secondary" style={{ fontSize: 11 }}>Resolved</Text>
               <Text strong style={{ fontSize: 13, color: '#22c55e' }}>{metrics?.resolutionTime?.totalResolved || 0}</Text>
+            </div>
+            <Divider style={{ margin: '8px 0', borderColor: '#303030' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+              <Text type="secondary" style={{ fontSize: 11 }}><RobotOutlined /> AI Deflection</Text>
+              <Text strong style={{ fontSize: 13, color: '#8b5cf6' }}>{metrics?.aiMetrics?.deflectionRate || '0%'}</Text>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <Text type="secondary" style={{ fontSize: 11 }}>Avg Resolution (hrs)</Text>
+              <Text strong style={{ fontSize: 13 }}>{metrics?.aiMetrics?.averageResolutionHours ?? 'N/A'}</Text>
             </div>
           </Card>
         </Col>

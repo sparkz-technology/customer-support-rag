@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ticketsApi, agentApi, adminApi } from './client';
+import { ticketsApi, agentApi, adminApi, a2aApi, knowledgeApi } from './client';
 import toast from 'react-hot-toast';
 import { getToastErrorMessage } from '../shared/utils/errorUtils';
 
@@ -18,6 +18,8 @@ export const queryKeys = {
   adminTickets: (filter) => ['admin-tickets', filter || {}],
   dashboard: dashboardQueryKeys.metrics,
   slaAlerts: dashboardQueryKeys.slaAlerts,
+  a2aTask: (id) => ['a2a-task', id],
+  knowledgeSearch: (q) => ['knowledge-search', q],
 };
 
 // Tickets Hooks
@@ -106,8 +108,8 @@ export const useUpdateTicketStatus = (ticketId) => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (status) => ticketsApi.updateStatus(ticketId, status),
-    onSuccess: (_, status) => {
+    mutationFn: ({ status, remark }) => ticketsApi.updateStatus(ticketId, status, remark),
+    onSuccess: (_, { status }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.ticket(ticketId) });
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
@@ -158,7 +160,12 @@ export const useReassignTicket = (ticketId) => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (agentId) => agentApi.updateTicket(ticketId, { assignedTo: agentId }),
+    mutationFn: (payload) => {
+      if (typeof payload === 'string') {
+        return agentApi.updateTicket(ticketId, { assignedTo: payload });
+      }
+      return agentApi.updateTicket(ticketId, { assignedTo: payload.agentId, remark: payload.remark });
+    },
     onSuccess: (data) => {
       // Invalidate all ticket-related queries
       queryClient.invalidateQueries({ queryKey: queryKeys.ticket(ticketId) });
@@ -204,5 +211,63 @@ export const useBulkUpdateTickets = () => {
     onError: (err) => {
       toast.error(getToastErrorMessage(err));
     },
+  });
+};
+
+// ── A2A Hooks ──────────────────────────────────────────────
+
+/**
+ * Poll a single A2A task by ID.
+ * Polls every 2 seconds while the task state is "working" or "submitted".
+ */
+export const useA2ATask = (taskId) => {
+  return useQuery({
+    queryKey: queryKeys.a2aTask(taskId),
+    queryFn: () => a2aApi.getTask(taskId, 10),
+    enabled: !!taskId,
+    refetchInterval: (query) => {
+      const state = query?.state?.data?.status?.state;
+      return state === 'working' || state === 'submitted' ? 2000 : false;
+    },
+    staleTime: 1000,
+    retry: 2,
+  });
+};
+
+/**
+ * Mutation to apply AI-proposed updates to a ticket via A2A.
+ */
+export const useApplyAIUpdates = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ ticketId, updates, remark }) =>
+      a2aApi.applyTicketUpdates(ticketId, updates, remark),
+    onSuccess: (_, { ticketId }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.ticket(ticketId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.agentTicket(ticketId) });
+      queryClient.invalidateQueries({ queryKey: ['agent-tickets'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard });
+      toast.success('AI updates applied');
+    },
+    onError: (err) => {
+      toast.error(getToastErrorMessage(err));
+    },
+  });
+};
+
+// ── Knowledge Base Hook ────────────────────────────────────
+
+/**
+ * Search the Pinecone knowledge base.
+ * Only fires when query is non-empty.
+ */
+export const useKnowledgeSearch = (query) => {
+  return useQuery({
+    queryKey: queryKeys.knowledgeSearch(query),
+    queryFn: () => knowledgeApi.search(query),
+    enabled: !!query?.trim(),
+    staleTime: 30_000,
+    retry: 1,
   });
 };

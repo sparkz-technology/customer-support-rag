@@ -7,7 +7,7 @@ const validateConfig = () => {
   const warnings = [];
   const errors = [];
 
-  // Check required API keys
+  // ── Required API keys (server will NOT start without these) ──
   if (!CONFIG.GROQ_API_KEY) {
     errors.push('❌ GROQ_API_KEY is missing - AI features will not work');
   } else {
@@ -26,11 +26,35 @@ const validateConfig = () => {
     console.log('✅ PINECONE_API_KEY configured');
   }
 
-  // Check optional services
+  // ── Security checks ──
+  if (CONFIG.JWT_SECRET === 'dev_jwt_secret_change_me') {
+    warnings.push('⚠️  JWT_SECRET is using the default dev value – rotate for production');
+  }
+  if (CONFIG.JWT_REFRESH_SECRET === 'dev_refresh_secret_change_me') {
+    warnings.push('⚠️  JWT_REFRESH_SECRET is using the default dev value – rotate for production');
+  }
+
+  // ── Optional services (graceful degradation) ──
+  if (!CONFIG.JINA_API_KEY) {
+    warnings.push('⚠️  JINA_API_KEY not configured - Jina re-ranker disabled, falling back to LLM rerank');
+  } else {
+    console.log('✅ JINA_API_KEY configured');
+  }
+
   if (!CONFIG.SMTP_HOST || !CONFIG.SMTP_USER || !CONFIG.SMTP_PASS) {
     warnings.push('⚠️  Email (SMTP) not configured - Notifications disabled');
   } else {
     console.log('✅ SMTP configured');
+  }
+
+  if (!CONFIG.WEBHOOK_URL) {
+    warnings.push('⚠️  WEBHOOK_URL not configured - Webhook notifications disabled');
+  } else {
+    console.log('✅ WEBHOOK_URL configured');
+  }
+
+  if (!CONFIG.A2A_PUBLIC_URL) {
+    warnings.push('⚠️  A2A_PUBLIC_URL not configured - A2A agent card discovery disabled');
   }
 
   // Display warnings

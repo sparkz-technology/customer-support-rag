@@ -27,14 +27,20 @@ export const useA2ATasks = (options = {}) => {
 };
 
 /**
- * Hook to fetch a single A2A task by ID
+ * Hook to fetch a single A2A task by ID.
+ * Polls every 2 seconds while the task state is "working" or "submitted".
  */
 export const useA2ATask = (taskId, options = {}) => {
   return useQuery({
     queryKey: a2aQueryKeys.task(taskId),
-    queryFn: () => a2aApi.getTask(taskId, 5),
+    queryFn: () => a2aApi.getTask(taskId, 10),
     enabled: !!taskId,
-    staleTime: 3_000,
+    refetchInterval: (query) => {
+      const state = query?.state?.data?.status?.state;
+      return state === 'working' || state === 'submitted' ? 2000 : false;
+    },
+    staleTime: 1_000,
+    retry: 2,
     ...options,
   });
 };
