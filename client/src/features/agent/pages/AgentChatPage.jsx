@@ -309,14 +309,14 @@ export default function AgentChatPage({ backPath = '/agent/tickets' }) {
             <TextArea
               rows={2}
               placeholder="Type your reply..."
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
+              value={replyMessage}
+              onChange={(e) => setReplyMessage(e.target.value)}
               disabled={replyMutation.isPending}
               style={{ fontSize: 13 }}
             />
             <Space.Compact>
               <Button size="small" icon={<ThunderboltOutlined />} onClick={handleAIReply} disabled={replyMutation.isPending} title="AI Reply">AI</Button>
-              <Button size="small" type="primary" icon={<SendOutlined />} onClick={handleSend} disabled={!message.trim() || replyMutation.isPending}>Send</Button>
+              <Button size="small" type="primary" icon={<SendOutlined />} onClick={handleSend} disabled={!replyMessage.trim() || replyMutation.isPending}>Send</Button>
             </Space.Compact>
           </div>
         </div>
@@ -376,7 +376,7 @@ export default function AgentChatPage({ backPath = '/agent/tickets' }) {
                 disabled={!a2aState.data?.suggestedResponse}
                 onClick={() => {
                   if (!a2aState.data?.suggestedResponse) return;
-                  setMessage(a2aState.data.suggestedResponse);
+                  setReplyMessage(a2aState.data.suggestedResponse);
                 }}
               >
                 Use Reply

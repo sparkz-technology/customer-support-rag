@@ -5,6 +5,7 @@ import { ConfigProvider, theme } from 'antd';
 import { Toaster } from 'react-hot-toast';
 import './index.css';
 import App from './App.jsx';
+import ErrorBoundary from './shared/components/ErrorBoundary.jsx';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -167,7 +168,9 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <ConfigProvider theme={darkTheme}>
-        <App />
+        <ErrorBoundary>
+          <App />
+        </ErrorBoundary>
         <Toaster
           position="top-right"
           toastOptions={{

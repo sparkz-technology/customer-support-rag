@@ -387,6 +387,20 @@ export const handleSendMessage = async ({ message, metadata = {} }, user, req) =
     appliedUpdates = result?.ticket || null;
   }
 
+  if (!data.applyChanges && user?.role === "admin" && Object.keys(proposedUpdates).length > 0) {
+    const result = await updateTicketByAgent(
+      {
+        ticketId,
+        ...proposedUpdates,
+        remark: "Auto-applied by AI assistant",
+        agentEmail: user?.email,
+      },
+      user,
+      req
+    );
+    appliedUpdates = result?.ticket || appliedUpdates;
+  }
+
   const responseSummary = [
     `Ticket ${ticketId} analyzed.`,
     suggestedResponse ? "Suggested response generated." : null,

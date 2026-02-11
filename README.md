@@ -12,6 +12,10 @@ An intelligent customer support backend with RAG (Retrieval Augmented Generation
 - **SLA Management** - Automatic SLA tracking with breach alerts
 - **Real-time Webhooks** - Event-driven notifications for ticket lifecycle
 
+## 📘 Documentation
+- How it works: docs/how-it-works.md
+- Setup guide: docs/setup.md
+
 ### Authentication & Security
 - OTP-based email authentication
 - Session token management
